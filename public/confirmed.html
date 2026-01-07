@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shop | sashisu realm ⚡🎶</title>
+
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+
+    <!-- tailwind cdn -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <!-- css -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body class="min-h-screen w-full text-white">
+    <header
+      class="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-purple-500/20"
+    >
+      <div class="flex items-center justify-between px-4 py-3">
+        <!-- hamburger -->
+        <button
+          id="menuBtn"
+          class="p-2 rounded-lg hover:bg-white/10 transition"
+          aria-label="Open menu"
+          type="button"
+        >
+          <i class="fa-solid fa-bars text-white text-xl"></i>
+        </button>
+
+        <!-- title -->
+        <div class="text-base text-xl lg:text-3xl font-semibold tracking-wide">
+          sashisu realm ⚡🎶
+        </div>
+
+        <!-- cart count + profile -->
+        <div class="cartNprofile flex items-center gap-3">
+          <a
+            href="cart.html"
+            class="text-sm text-white/90 hover:text-purple-300 transition"
+          >
+            <span id="cartCount">0</span>
+          </a>
+
+          <a
+            href="account.html"
+            class="p-2 rounded-lg hover:bg-white/10 transition"
+            aria-label="Account"
+            title="Account"
+          >
+            <div
+              class="w-7 h-7 rounded-full border border-white/40 flex items-center justify-center"
+            >
+              <span class="text-xs">👤</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- side menu -->
+    <aside
+      id="sideMenu"
+      class="fixed top-0 left-0 h-full w-72 max-w-[80vw] bg-black/80 backdrop-blur-md border-r border-purple-500/20 translate-x-[-110%] transition-transform duration-300 z-50"
+    >
+      <div
+        class="p-4 flex items-center justify-between border-b border-white/10"
+      >
+        <div class="menu font-semibold">Menu</div>
+        <button id="closeMenuBtn" class="p-2 rounded-lg hover:bg-white/10">
+          ✕
+        </button>
+      </div>
+
+      <nav class="go sections p-4 space-y-3 text-white/90">
+        <a class="block hover:text-purple-300" href="index.html">Home</a>
+        <a class="block hover:text-purple-300" href="browse.html"
+          >Prison Inventory</a
+        >
+        <a class="block hover:text-purple-300" href="orders.html"
+          >View Orders</a
+        >
+        <a class="block hover:text-purple-300" href="account.html">Account</a>
+      </nav>
+    </aside>
+
+    <main
+      class="page-min-height bg-cover bg-center"
+      style="background-image: url('images/bg1.png')"
+    >
+      <!-- background -->
+      <section
+        class="relative h-full w-full bg-cover bg-center"
+        style="background-image: url('images/bg1.png')"
+      >
+        <!-- dark overlay -->
+        <div class="absolute inset-0 bg-black/70"></div>
+
+        <section class="page-min-height bg-black/70 flex items-center">
+          <div class="w-full px-4 py-10 flex justify-center">
+            <div class="w-full max-w-3xl">
+              <section
+                class="rounded-3xl bg-black/40 border border-purple-500/25 backdrop-blur-md shadow-2xl shadow-purple-700/20 p-6 sm:p-10 text-center"
+              >
+                <!-- Aizawa text -->
+                <h1
+                  class="done anime-text text-2xl sm:text-4xl font-black tracking-widest mb-4"
+                >
+                  It’s done…
+                </h1>
+
+                <p class="complete text-white/85 text-base sm:text-lg mb-4">
+                  The transaction is complete.<br />
+                  Don’t get comfortable. You’re still under my watch.
+                </p>
+
+                <p class="quote text-white/70 italic text-sm sm:text-base mb-6">
+                  “You made your choice. <br class="hidden sm:block" />
+                  Now deal with the consequences.”<br />
+                  — Aizawa Shouta
+                </p>
+
+                <!-- dynamic order summary -->
+                <div class="mt-8 mb-10 flex justify-center">
+                  <div
+                    class="w-full max-w-xl rounded-2xl bg-black/35 border border-purple-500/15 px-6 py-5 sm:px-8 sm:py-6 text-left"
+                  >
+                    <div
+                      class="py-2 flex items-center justify-between text-white/80"
+                    >
+                      <span>Order Number</span>
+                      <span id="orderId" class="font-semibold text-green-300"
+                        >—</span
+                      >
+                    </div>
+
+                    <div
+                      class="py-2 flex items-center justify-between text-white/80"
+                    >
+                      <span>Total Damaged</span>
+                      <span id="orderTotal" class="font-semibold">¥0</span>
+                    </div>
+
+                    <div
+                      class="py-2 flex items-center justify-between text-white/80"
+                    >
+                      <span>Points Earned</span>
+                      <span id="orderPoints" class="font-semibold">+0</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="back2prison mt-10 flex justify-center">
+                  <button
+                    id="viewOrdersBtn"
+                    class="button-text px-8 py-4 sm:px-10 sm:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-xl shadow-purple-600/30 hover:shadow-2xl hover:shadow-purple-600/50 text-lg sm:text-xl md:text-2xl font-bold tracking-wider"
+                  >
+                    View Orders
+                  </button>
+                </div>
+
+                <div class="back2orders mt-4">
+                  <a
+                    href="browse.html"
+                    class="text-sm text-purple-300 underline hover:text-purple-200"
+                  >
+                    Back to Prison Inventory
+                  </a>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer
+      class="relative h-10 bg-cover bg-center"
+      style="background-image: url('images/bg1.png')"
+    >
+      <!-- Overlay -->
+      <div class="absolute inset-0 bg-black/80"></div>
+
+      <div
+        class="relative z-10 h-full flex items-center justify-center text-xs text-gray-400"
+      >
+        © 2026 Sashisu Realm • You cannot escape.
+      </div>
+    </footer>
+
+    <!-- js -->
+    <script src="js/confirmed.js"></script>
+  </body>
+</html>

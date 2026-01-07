@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sashisu realm ⚡🎶</title>
+
+    <!-- tailwind cdn -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <!-- css -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body class="h-screen w-screen overflow-hidden">
+    <header></header>
+
+    <main class="h-full w-full">
+      <!-- background -->
+      <div
+        class="relative h-full w-full bg-cover bg-center"
+        style="background-image: url('images/bg1.png')"
+      >
+        <!-- dark overlay -->
+        <div class="absolute inset-0 bg-black/70"></div>
+
+        <!-- CONTENT -->
+        <div
+          class="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center text-white"
+        >
+          <!-- title -->
+          <h1
+            class="anime-text font-black tracking-widest text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-6"
+          >
+            Welcome to<br />
+            <span class="text-purple-500"> sashisu realm ⚡🎶 </span>
+          </h1>
+
+          <!-- tagline -->
+          <p
+            class="font-medium max-w-md sm:max-w-lg md:max-w-xl text-base sm:text-lg md:text-xl text-gray-300 mb-12 leading-relaxed"
+          >
+            You are trapped in a Prison Realm full of anime.
+          </p>
+
+          <!-- button -->
+          <button
+            id="enterRealmBtn"
+            class="button-text px-8 py-4 sm:px-10 sm:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:-translate-y-1 shadow-xl shadow-purple-600/30 hover:shadow-2xl hover:shadow-purple-600/50 text-lg sm:text-xl md:text-2xl font-bold tracking-wider"
+          >
+            ENTER THE REALM
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <footer></footer>
+
+    <!-- js -->
+    <script src="js/index.js"></script>
+  </body>
+</html>

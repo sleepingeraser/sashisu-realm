@@ -1,0 +1,211 @@
+const cartList = document.getElementById("cartList");
+const cartTotalEl = document.getElementById("cartTotal");
+const pointsEl = document.getElementById("pointsEarned");
+const emptyMsg = document.getElementById("emptyMsg");
+const proceedBtn = document.getElementById("proceedBtn");
+
+function computeTotals(cart) {
+  let total = 0;
+  cart.forEach((item) => {
+    const price = Number(item.price || 0);
+    const qty = Number(item.qty || 1);
+    total += price * qty;
+  });
+  return total;
+}
+
+function renderCart() {
+  const cart = getCart();
+  updateHeaderCartCount();
+
+  // ---------- helpers ----------
+  function getCart() {
+    try {
+      return JSON.parse(localStorage.getItem("cart")) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function setCart(cart) {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }
+
+  function formatYen(amount) {
+    return `¥${Number(amount).toLocaleString()}`;
+  }
+
+  function updateHeaderCartCount() {
+    const cart = getCart();
+    const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
+    const el = document.getElementById("cartCount");
+    if (el) el.textContent = totalQty;
+  }
+
+  // Points: every 10 yen = 1 point
+  function calcPoints(totalYen) {
+    return Math.floor(Number(totalYen) / 10);
+  }
+
+  // empty
+  if (!cart.length) {
+    cartList.innerHTML = "";
+    cartTotalEl.textContent = formatYen(0);
+    pointsEl.textContent = "+0";
+    emptyMsg.classList.remove("hidden");
+    proceedBtn.disabled = true;
+    proceedBtn.classList.add("opacity-50", "cursor-not-allowed");
+    return;
+  }
+
+  emptyMsg.classList.add("hidden");
+  proceedBtn.disabled = false;
+  proceedBtn.classList.remove("opacity-50", "cursor-not-allowed");
+
+  cartList.innerHTML = "";
+
+  cart.forEach((item) => {
+    const price = Number(item.price || 0);
+    const qty = Number(item.qty || 1);
+
+    const row = document.createElement("div");
+    row.className =
+      "flex items-center gap-3 rounded-2xl bg-black/35 border border-purple-500/15 p-3";
+
+    row.innerHTML = `
+      <div class="w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-black/30 flex-shrink-0">
+        <img src="${item.image}" alt="${
+      item.name
+    }" class="w-full h-full object-cover" />
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <div class="text-sm sm:text-base font-semibold text-white/95 truncate">${
+          item.name
+        }</div>
+        <div class="text-xs text-white/70 mt-1">${formatYen(price)}</div>
+
+        <!-- qty controls -->
+        <div class="mt-2 flex items-center gap-2">
+          <button
+            class="qtyMinus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10"
+            type="button"
+          >
+            -
+          </button>
+
+          <div class="px-3 py-1 rounded-lg bg-black/40 border border-purple-500/20 text-sm">
+            <span class="qtyVal">${qty}</span>
+          </div>
+
+          <button
+            class="qtyPlus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10"
+            type="button"
+          >
+            +
+          </button>
+
+          <div class="ml-auto text-xs sm:text-sm text-white/80">
+            Subtotal: <span class="font-semibold">${formatYen(
+              price * qty
+            )}</span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        class="dropBtn px-3 py-2 rounded-xl bg-purple-700/40 hover:bg-purple-700/60 border border-purple-500/25 text-xs"
+        type="button"
+        title="Remove item"
+      >
+        drop it
+      </button>
+    `;
+
+    // buttons
+    const minusBtn = row.querySelector(".qtyMinus");
+    const plusBtn = row.querySelector(".qtyPlus");
+    const dropBtn = row.querySelector(".dropBtn");
+
+    minusBtn.addEventListener("click", () => {
+      changeQty(item.id, -1);
+    });
+
+    plusBtn.addEventListener("click", () => {
+      changeQty(item.id, +1);
+    });
+
+    dropBtn.addEventListener("click", () => {
+      removeItem(item.id);
+    });
+
+    cartList.appendChild(row);
+  });
+
+  // totals + points
+  const total = computeTotals(cart);
+  cartTotalEl.textContent = formatYen(total);
+  pointsEl.textContent = `+${calcPoints(total)}`;
+}
+
+// ---------- cart actions ----------
+function changeQty(productId, delta) {
+  const cart = getCart();
+  const item = cart.find((c) => c.id === productId);
+  if (!item) return;
+
+  const current = Number(item.qty || 1);
+  const next = current + delta;
+
+  // if goes to 0 => remove
+  if (next <= 0) {
+    const updated = cart.filter((c) => c.id !== productId);
+    setCart(updated);
+    renderCart();
+    return;
+  }
+
+  item.qty = next;
+  setCart(cart);
+  renderCart();
+}
+
+function removeItem(productId) {
+  const cart = getCart();
+  const updated = cart.filter((c) => c.id !== productId);
+  setCart(updated);
+  renderCart();
+}
+
+// ---------- proceed ----------
+proceedBtn.addEventListener("click", () => {
+  const cart = getCart();
+  if (!cart.length) {
+    alert("Cart is empty. No loot, no checkout.");
+    return;
+  }
+
+  // save summary for next page if you want
+  const total = computeTotals(cart);
+  const points = calcPoints(total);
+
+  localStorage.setItem("checkoutTotal", String(total));
+  localStorage.setItem("checkoutPoints", String(points));
+
+  // change this to your next page:
+  window.location.href = "checkout.html";
+});
+
+// ---------- Side menu ----------
+const sideMenu = document.getElementById("sideMenu");
+document.getElementById("menuBtn").addEventListener("click", () => {
+  sideMenu.classList.remove("translate-x-[-110%]");
+  sideMenu.classList.add("translate-x-0");
+});
+document.getElementById("closeMenuBtn").addEventListener("click", () => {
+  sideMenu.classList.add("translate-x-[-110%]");
+  sideMenu.classList.remove("translate-x-0");
+});
+
+// ---------- init ----------
+renderCart();
