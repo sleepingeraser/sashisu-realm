@@ -9,10 +9,10 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// serve your frontend from /public
+// Serve frontend from /public
 app.use(express.static(path.join(__dirname, "public")));
 
-// API: GET /api/products?offset=0&limit=9
+// API endpoint
 app.get("/api/products", (req, res) => {
   const offset = Number(req.query.offset ?? 0);
   const limit = Number(req.query.limit ?? 9);
@@ -28,11 +28,9 @@ app.get("/api/products", (req, res) => {
   });
 });
 
-// default: serve index.html (so visiting / works)
+// nice default
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log("Running on port", PORT));
