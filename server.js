@@ -2,14 +2,14 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const { sql, getPool } = require("./config/dbConfig.js");
+const { sql, getPool } = require("./config/dbConfig");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Serve your frontend from /public
+// serve your frontend from /public
 app.use(express.static("public"));
 
 function safeInt(value, fallback) {
@@ -18,7 +18,7 @@ function safeInt(value, fallback) {
   return Math.max(0, Math.floor(n));
 }
 
-// Health check
+// health check
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });

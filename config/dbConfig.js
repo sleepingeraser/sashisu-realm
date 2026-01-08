@@ -13,7 +13,7 @@ const config = {
 
 let pool;
 
-/* returns a single shared connection pool */
+/* Returns a single shared connection pool */
 async function getPool() {
   if (pool) return pool;
   pool = await sql.connect(config);
