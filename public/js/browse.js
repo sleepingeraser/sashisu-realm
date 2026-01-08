@@ -64,7 +64,7 @@ function applySearchFilterSort(products) {
   if (q) {
     result = result.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
+        (p.name || "").toLowerCase().includes(q) ||
         (p.tags || []).join(" ").toLowerCase().includes(q)
     );
   }
@@ -95,8 +95,11 @@ function render() {
 
   filtered.forEach((p) => {
     const card = document.createElement("div");
+
+    // Card container (added hover polish)
     card.className =
-      "rounded-2xl bg-black/40 border border-purple-500/20 overflow-hidden shadow-lg shadow-purple-700/10";
+      "rounded-2xl bg-black/40 border border-purple-500/20 overflow-hidden shadow-lg shadow-purple-700/10 " +
+      "transition transform hover:-translate-y-1 hover:shadow-purple-700/30";
 
     card.innerHTML = `
       <div class="aspect-square bg-black/30 flex items-center justify-center">
@@ -105,15 +108,19 @@ function render() {
     }" class="w-full h-full object-cover" />
       </div>
 
-      <div class="p-3">
-        <div class="text-sm font-semibold text-white/95 leading-snug min-h-[42px]">${
-          p.name
-        }</div>
-        <div class="text-xs text-white/70 mt-1">${formatYen(p.price)}</div>
+      <!-- Centered content + aligned spacing -->
+      <div class="p-4 flex flex-col items-center text-center gap-2">
+        <div class="product-title text-sm font-semibold text-white/95 leading-snug min-h-[42px] flex items-center justify-center">
+          ${p.name}
+        </div>
+
+        <div class="text-sm text-white/70">
+          ${formatYen(p.price)}
+        </div>
 
         <button
           type="button"
-          class="mt-3 w-full button-text py-2 rounded-xl
+          class="mt-2 button-text px-8 py-2 rounded-xl
                  bg-purple-700/70 hover:bg-purple-700
                  border border-purple-500/20 transition"
         >

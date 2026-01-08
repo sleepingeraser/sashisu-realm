@@ -93,6 +93,14 @@ label {
 .delivery-options /* checkout */ {
   margin: 25px;
 }
+/* browse */
+.grid {
+  margin: 25px;
+}
+
+.product-title {
+  padding: 6px 8px; /* top/bottom | left/right */
+}
 
 /* checkout – payment options spacing */
 .payment-options label,
