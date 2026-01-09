@@ -18,18 +18,9 @@ function safeInt(value, fallback) {
   return Math.max(0, Math.floor(n));
 }
 
-// health check
+// ealth check
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
-});
-
-// check if server is running
-app.get("/", (req, res) => {
-  res.send(`
-    <h1>Server is running! ✅</h1>
-    <p><a href="/api/health">Check health</a></p>
-    <p><a href="/api/products">View products API</a></p>
-  `);
 });
 
 // GET /api/products?offset=0&limit=9
@@ -40,7 +31,6 @@ app.get("/api/products", async (req, res) => {
     const limit = Math.min(Math.max(limitRaw, 1), 30); // clamp 1..30
 
     const pool = await getPool();
-    console.log("Database connected successfully");
 
     // total active products
     const countResult = await pool.request().query(`
@@ -105,6 +95,6 @@ app.get("/api/products", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Server running: http://localhost:${PORT}`);
 });
