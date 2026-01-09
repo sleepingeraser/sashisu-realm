@@ -1,7 +1,3 @@
-// ==============================
-// browse.js (NO API VERSION)
-// ==============================
-
 // ---------- LOCAL PRODUCT DATA ----------
 const PRODUCTS = [
   {
