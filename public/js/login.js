@@ -4,7 +4,7 @@ document.getElementById("loginForm").addEventListener("submit", (e) => {
   const email = document.getElementById("email").value.trim().toLowerCase();
   const password = document.getElementById("password").value.trim();
 
-  // Load users list (array)
+  // load users list (array)
   let users = [];
   try {
     users = JSON.parse(localStorage.getItem("users")) || [];
@@ -12,37 +12,42 @@ document.getElementById("loginForm").addEventListener("submit", (e) => {
     users = [];
   }
 
-  // If no users at all
+  // if no users at all
   if (users.length === 0) {
     alert("No record found.\nYou need to create an account first.");
     window.location.href = "signup.html";
     return;
   }
 
-  // Find matching email
+  // find matching email
   const user = users.find((u) => (u.email || "").toLowerCase() === email);
 
-  // Email not recorded
+  // email not recorded
   if (!user) {
     alert("That email is not recorded.\nCreate an account first.");
     window.location.href = "signup.html";
     return;
   }
 
-  // Email exists but password wrong
+  // email exists but password wrong
   if (user.password !== password) {
     alert("Invalid email or password.\nTry again.");
     return;
   }
 
-  // Login success
+  // login success
   localStorage.setItem("token", "aizawa-approved-token");
 
-  // For account page
-  localStorage.setItem(
-    "currentUser",
-    JSON.stringify({ codename: user.codename, email: user.email })
-  );
+  // save user in BOTH keys so all pages work:
+  const savedUser = {
+    codename: user.codename || user.username || "",
+    username: user.username || user.codename || "",
+    email: user.email,
+  };
 
+  localStorage.setItem("currentUser", JSON.stringify(savedUser));
+  localStorage.setItem("user", JSON.stringify(savedUser));
+
+  // Go to browse (your original flow)
   window.location.href = "browse.html";
 });
