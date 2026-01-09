@@ -79,10 +79,10 @@ const PRODUCTS = [
   },
   {
     id: "10",
-    name: "Kentou Umbrella Acrylic Stand",
+    name: "Kento Umbrella Acrylic Stand",
     price: 1560,
     category: "stand",
-    image: "images/kentouUmbrellaAcrylicStand.jpg",
+    image: "images/kentoUmbrellaAcrylicStand.jpg",
     tags: ["jjk", "nanami", "kentou"],
   },
   {
