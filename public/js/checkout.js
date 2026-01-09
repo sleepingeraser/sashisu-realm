@@ -224,22 +224,24 @@ async function initStripe() {
   if (!cfg?.publishableKey) throw new Error("Missing Stripe publishable key");
 
   stripe = Stripe(cfg.publishableKey);
+
   const elements = stripe.elements();
 
   const style = {
     base: {
-      color: "#ffffff",
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      color: "#fff",
       fontSize: "16px",
       "::placeholder": { color: "#9CA3AF" },
     },
     invalid: { color: "#FCA5A5" },
   };
 
+  // create 3 separate fields
   cardNumber = elements.create("cardNumber", { style });
   cardExpiry = elements.create("cardExpiry", { style });
   cardCvc = elements.create("cardCvc", { style });
 
+  // mount to your new IDs
   cardNumber.mount("#card-number");
   cardExpiry.mount("#card-expiry");
   cardCvc.mount("#card-cvc");
@@ -394,10 +396,6 @@ if (sealBtn) {
       // 2) confirm payment in browser
       const cardNameEl = document.getElementById("cardName");
       const cardholderName = (cardNameEl?.value || "").trim();
-      if (!cardholderName) {
-        showError("Please enter the name on card.");
-        return;
-      }
 
       const result = await stripe.confirmCardPayment(pi.clientSecret, {
         payment_method: {
