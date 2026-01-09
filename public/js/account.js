@@ -24,10 +24,7 @@ function getUser() {
 }
 
 function getUserPoints(user) {
-  // Support multiple storage styles so your project won’t break:
-  // 1) user.points
-  // 2) localStorage.points
-  // 3) localStorage.userPoints
+  // support multiple storage styles so your project won’t break:
   if (user && typeof user.points === "number") return user.points;
 
   const p1 = Number(localStorage.getItem("points"));
@@ -99,7 +96,7 @@ if (logoutBtn) logoutBtn.addEventListener("click", logoutAndExit);
 
 if (leaveBtn) {
   leaveBtn.addEventListener("click", () => {
-    // "Leave" = logout + go home (you can change destination)
+    // "Leave" = logout + go home
     localStorage.removeItem("token");
     window.location.href = "index.html";
   });

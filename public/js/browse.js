@@ -336,7 +336,6 @@ function applySearchFilterSort(products) {
   if (sort === "price-desc") result.sort((a, b) => b.price - a.price);
   if (sort === "name-asc") result.sort((a, b) => a.name.localeCompare(b.name));
   if (sort === "newest") {
-    // your ids are strings, but numeric strings => safe compare using Number
     result.sort((a, b) => Number(b.id) - Number(a.id));
   }
 

@@ -86,7 +86,7 @@ label {
 }
 
 .list, /* cart */
-.summary,/* cart & checkout */
+.summary, /* cart & checkout */
 .payment-method, /* checkout */
 .delivery-method, /* checkout */
 .payment-options, /* checkout */ 
