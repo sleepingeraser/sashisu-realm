@@ -216,7 +216,7 @@ const PRODUCTS = [
     name: "Suguru Hidden Inventory Postcard Set",
     price: 550,
     category: "postcard",
-    image: "images/SuguruHiddenInnventoryPostcardSet.jpg",
+    image: "images/SuguruHiddenInventoryPostcardSet.jpg",
     tags: ["jjk", "geto"],
   },
   {
