@@ -1,6 +1,8 @@
-const API_BASE = window.location.hostname.includes("github.io")
-  ? "https://sashisu-realm.onrender.com"
-  : "";
+const API_BASE =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : "https://sashisu-realm.onrender.com";
 
 const itemsTotalEl = document.getElementById("itemsTotal");
 const deliveryFeeEl = document.getElementById("deliveryFee");
