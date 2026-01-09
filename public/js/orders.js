@@ -61,23 +61,21 @@ function renderOrders() {
     const card = document.createElement("a");
     card.href = `order-details.html?orderId=${encodeURIComponent(orderId)}`;
     card.className =
-      "block rounded-2xl bg-black/35 border border-purple-500/20 backdrop-blur-md " +
+      "box block rounded-2xl bg-black/35 border border-purple-500/20 backdrop-blur-md " +
       "hover:bg-black/45 transition shadow-lg shadow-purple-700/10 p-4";
 
     card.innerHTML = `
-  <div class="order-row flex items-center justify-between gap-4">
-    <div class="order-info">
-      <div class="text-sm text-white/70">
-        Order number <span class="text-green-300 font-semibold">${orderId}</span>
-      </div>
-      <div class="text-lg font-semibold ${statusClass} mt-1">${status}</div>
-    </div>
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class=" text-sm text-white/70">Order number <span class="text-green-300 font-semibold">${orderId}</span></div>
+          <div class="text-lg font-semibold ${statusClass} mt-1">${status}</div>
+        </div>
 
-    <div class="order-price text-lg sm:text-xl font-bold text-white/95">
-      ${formatYen(total)}
-    </div>
-  </div>
-`;
+        <div class="text-lg sm:text-xl font-bold text-white/95">
+          ${formatYen(total)}
+        </div>
+      </div>
+    `;
 
     ordersList.appendChild(card);
   });
