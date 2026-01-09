@@ -1,3 +1,5 @@
+// js/checkout.js
+
 // ---------- elements ----------
 const itemsTotalEl = document.getElementById("itemsTotal");
 const deliveryFeeEl = document.getElementById("deliveryFee");
@@ -30,6 +32,8 @@ const prefectureEl = document.getElementById("prefecture");
 // ---------- constants ----------
 const DELIVERY_FEE = 318;
 
+const API_BASE = "https://sashisu-realm.vercel.app";
+
 // ---------- helpers ----------
 function getCart() {
   try {
@@ -38,7 +42,6 @@ function getCart() {
     return [];
   }
 }
-
 function setCart(cart) {
   localStorage.setItem("cart", JSON.stringify(cart));
 }
@@ -50,7 +53,6 @@ function getOrders() {
     return [];
   }
 }
-
 function setOrders(orders) {
   localStorage.setItem("orders", JSON.stringify(orders));
 }
@@ -67,7 +69,6 @@ function calcPointsFromYen(totalYen) {
 function getUserPoints() {
   return Number(localStorage.getItem("points") || "0");
 }
-
 function setUserPoints(points) {
   localStorage.setItem("points", String(Math.max(Number(points) || 0, 0)));
 }
@@ -101,7 +102,6 @@ function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.classList.remove("hidden");
 }
-
 function clearError() {
   if (!errorMsg) return;
   errorMsg.textContent = "";
@@ -142,7 +142,6 @@ function updatePointsUI(method, grandTotal) {
 
     userPointsEl.textContent = wallet.toLocaleString();
     neededPointsEl.textContent = need.toLocaleString();
-
     pointsHint.classList.remove("hidden");
   } else {
     pointsHint.classList.add("hidden");
@@ -152,7 +151,7 @@ function updatePointsUI(method, grandTotal) {
 // ---------- state ----------
 let cart = getCart();
 let itemsTotal = computeItemsTotal(cart);
-let deliveryFee = DELIVERY_FEE; // delivery-only
+let deliveryFee = DELIVERY_FEE;
 let grandTotal = 0;
 let earnedPoints = 0;
 
@@ -161,7 +160,6 @@ function renderSummary() {
   cart = getCart();
   itemsTotal = computeItemsTotal(cart);
 
-  // delivery-only fee always applies
   deliveryFee = DELIVERY_FEE;
   grandTotal = itemsTotal + deliveryFee;
 
@@ -172,7 +170,6 @@ function renderSummary() {
   if (totalYenEl) totalYenEl.textContent = formatYen(grandTotal);
   if (pointsEarnedEl) pointsEarnedEl.textContent = `+${earnedPoints}`;
 
-  // empty state
   if (!cart.length) {
     if (emptyMsg) emptyMsg.classList.remove("hidden");
     if (sealBtn) {
@@ -187,7 +184,6 @@ function renderSummary() {
     }
   }
 
-  // refresh points hint based on payment method
   updatePointsUI(getSelectedPayMethod(), grandTotal);
 }
 
@@ -199,7 +195,6 @@ payRadios.forEach((r) => {
   });
 });
 
-// OPTIONAL: live-clear error when typing delivery fields
 [
   fullNameEl,
   phoneEl,
@@ -215,9 +210,30 @@ payRadios.forEach((r) => {
   });
 });
 
+// ---------- stripe helper ----------
+async function createStripeSession(payload) {
+  const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text(); // read as text first
+
+  try {
+    const data = JSON.parse(text);
+    if (!res.ok)
+      throw new Error(data?.error || "Failed to create Stripe session");
+    return data;
+  } catch {
+    // shows the HTML/404 page so you can see what you hit
+    throw new Error("Expected JSON but got:\n" + text.slice(0, 200));
+  }
+}
+
 // ---------- seal order ----------
 if (sealBtn) {
-  sealBtn.addEventListener("click", () => {
+  sealBtn.addEventListener("click", async () => {
     clearError();
 
     cart = getCart();
@@ -226,7 +242,6 @@ if (sealBtn) {
       return;
     }
 
-    // Delivery details required (delivery-only)
     if (!deliveryDetailsValid()) {
       showError("Complete your delivery details. No missing fields.");
       return;
@@ -240,24 +255,11 @@ if (sealBtn) {
 
     const method = getSelectedPayMethod();
 
-    // if paying by points, check wallet
-    if (method === "points") {
-      const wallet = getUserPoints();
-      const need = calcPointsFromYen(grandTotal);
-
-      if (wallet < need) {
-        showError("Insufficient points. Choose card or earn more points.");
-        return;
-      }
-
-      // deduct points
-      setUserPoints(wallet - need);
-    }
-
-    const order = {
+    // build order object (don’t save yet for Stripe card)
+    const pendingOrder = {
       orderId: makeOrderId(),
-      itemsTotal: itemsTotal,
-      deliveryFee: deliveryFee,
+      itemsTotal,
+      deliveryFee,
       total: grandTotal,
       status: "Pre-Owned",
       deliveryMethod: "Delivery",
@@ -275,20 +277,56 @@ if (sealBtn) {
       })),
     };
 
-    const orders = getOrders();
-    orders.push(order);
-    setOrders(orders);
+    // POINTS METHOD (same as your current logic, but go to confirmed page)
+    if (method === "points") {
+      const wallet = getUserPoints();
+      const need = calcPointsFromYen(grandTotal);
 
-    // earn points after purchase (always earn points)
-    const walletNow = getUserPoints();
-    setUserPoints(walletNow + earnedPoints);
+      if (wallet < need) {
+        showError("Insufficient points. Choose card or earn more points.");
+        return;
+      }
 
-    // clear cart
-    setCart([]);
-    updateHeaderCartCount();
+      // deduct points
+      setUserPoints(wallet - need);
 
-    alert("Order sealed successfully. Check your Order History.");
-    window.location.href = "orders.html";
+      // save order
+      const orders = getOrders();
+      orders.push(pendingOrder);
+      setOrders(orders);
+
+      // earn points after purchase
+      const walletNow = getUserPoints();
+      setUserPoints(walletNow + earnedPoints);
+
+      // clear cart
+      setCart([]);
+      updateHeaderCartCount();
+
+      alert("Order sealed successfully. Points payment confirmed.");
+      window.location.href = "confirmed.html";
+      return;
+    }
+
+    // CARD METHOD (Stripe)
+    try {
+      // save pending order locally (finalize only after Stripe success)
+      localStorage.setItem("pendingOrder", JSON.stringify(pendingOrder));
+
+      // create stripe session
+      const session = await createStripeSession({
+        orderId: pendingOrder.orderId,
+        cart: pendingOrder.items,
+        deliveryFee: pendingOrder.deliveryFee,
+        currency: "jpy",
+      });
+
+      // redirect to Stripe-hosted checkout
+      window.location.href = session.url;
+    } catch (e) {
+      console.error(e);
+      showError(e?.message || "Stripe checkout failed. Try again.");
+    }
   });
 }
 

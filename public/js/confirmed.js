@@ -1,3 +1,5 @@
+// js/confirmed.js
+
 document.getElementById("viewOrdersBtn").addEventListener("click", () => {
   window.location.href = "orders.html";
 });
@@ -29,20 +31,99 @@ function getOrders() {
   }
 }
 
-function showLatestOrder() {
-  const orders = getOrders();
-  if (!orders.length) return;
+function setOrders(orders) {
+  localStorage.setItem("orders", JSON.stringify(orders));
+}
 
-  const last = orders[orders.length - 1];
+function getUserPoints() {
+  return Number(localStorage.getItem("points") || "0");
+}
 
+function setUserPoints(points) {
+  localStorage.setItem("points", String(Math.max(Number(points) || 0, 0)));
+}
+
+function setCart(cart) {
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function showOrderOnPage(order) {
   const orderIdEl = document.getElementById("orderId");
   const orderTotalEl = document.getElementById("orderTotal");
   const orderPointsEl = document.getElementById("orderPoints");
 
-  if (orderIdEl) orderIdEl.textContent = last.orderId || "—";
-  if (orderTotalEl) orderTotalEl.textContent = formatYen(last.total || 0);
+  if (orderIdEl) orderIdEl.textContent = order.orderId || "—";
+  if (orderTotalEl) orderTotalEl.textContent = formatYen(order.total || 0);
   if (orderPointsEl)
-    orderPointsEl.textContent = `+${Number(last.pointsEarned || 0)}`;
+    orderPointsEl.textContent = `+${Number(order.pointsEarned || 0)}`;
+}
+
+function getQueryParam(name) {
+  const url = new URL(window.location.href);
+  return url.searchParams.get(name);
+}
+
+async function verifyStripeSession(sessionId) {
+  const res = await fetch(
+    `/api/verify-session?session_id=${encodeURIComponent(sessionId)}`
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || "Failed to verify payment");
+  return data; // { payment_status: "paid" ... }
+}
+
+async function finalizeStripeOrderIfNeeded() {
+  const sessionId = getQueryParam("session_id");
+  if (!sessionId) return false;
+
+  // verify payment with backend
+  const session = await verifyStripeSession(sessionId);
+
+  if (session.payment_status !== "paid") {
+    alert("Payment not completed. Returning to checkout.");
+    window.location.href = "checkout.html";
+    return true;
+  }
+
+  // move pendingOrder -> orders
+  const raw = localStorage.getItem("pendingOrder");
+  if (!raw) {
+    // maybe already finalized
+    return false;
+  }
+
+  let pending;
+  try {
+    pending = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+
+  const orders = getOrders();
+  orders.push(pending);
+  setOrders(orders);
+
+  // earn points
+  const wallet = getUserPoints();
+  setUserPoints(wallet + Number(pending.pointsEarned || 0));
+
+  // clear cart
+  setCart([]);
+  updateHeaderCartCount();
+
+  // clean up pending order
+  localStorage.removeItem("pendingOrder");
+
+  // show it
+  showOrderOnPage(pending);
+  return true;
+}
+
+function showLatestOrderFallback() {
+  const orders = getOrders();
+  if (!orders.length) return;
+  const last = orders[orders.length - 1];
+  showOrderOnPage(last);
 }
 
 // ---------- side menu (safe) ----------
@@ -78,5 +159,15 @@ document.addEventListener("keydown", (e) => {
 });
 
 // init
-updateHeaderCartCount();
-showLatestOrder();
+(async function init() {
+  updateHeaderCartCount();
+
+  try {
+    const handled = await finalizeStripeOrderIfNeeded();
+    if (!handled) showLatestOrderFallback();
+  } catch (e) {
+    console.error(e);
+    alert("Could not verify Stripe payment. Returning to checkout.");
+    window.location.href = "checkout.html";
+  }
+})();
