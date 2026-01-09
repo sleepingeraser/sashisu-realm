@@ -1,4 +1,6 @@
-const API_BASE = "";
+const API_BASE = window.location.hostname.includes("github.io")
+  ? "https://sashisu-realm.onrender.com"
+  : "";
 
 const itemsTotalEl = document.getElementById("itemsTotal");
 const deliveryFeeEl = document.getElementById("deliveryFee");
