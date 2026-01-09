@@ -1,51 +1,51 @@
+// ---------- elements ----------
 const cartList = document.getElementById("cartList");
 const cartTotalEl = document.getElementById("cartTotal");
 const pointsEl = document.getElementById("pointsEarned");
 const emptyMsg = document.getElementById("emptyMsg");
 const proceedBtn = document.getElementById("proceedBtn");
 
+// ---------- helpers ----------
+function getCart() {
+  try {
+    return JSON.parse(localStorage.getItem("cart")) || [];
+  } catch {
+    return [];
+  }
+}
+
+function setCart(cart) {
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function formatYen(amount) {
+  return `¥${Number(amount).toLocaleString()}`;
+}
+
+// Points: every 10 yen = 1 point
+function calcPoints(totalYen) {
+  return Math.floor(Number(totalYen) / 10);
+}
+
+function updateHeaderCartCount() {
+  const cart = getCart();
+  const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
+  const el = document.getElementById("cartCount");
+  if (el) el.textContent = totalQty;
+}
+
 function computeTotals(cart) {
   let total = 0;
   cart.forEach((item) => {
-    const price = Number(item.price || 0);
-    const qty = Number(item.qty || 1);
-    total += price * qty;
+    total += Number(item.price || 0) * Number(item.qty || 1);
   });
   return total;
 }
 
+// ---------- render ----------
 function renderCart() {
   const cart = getCart();
   updateHeaderCartCount();
-
-  // ---------- helpers ----------
-  function getCart() {
-    try {
-      return JSON.parse(localStorage.getItem("cart")) || [];
-    } catch {
-      return [];
-    }
-  }
-
-  function setCart(cart) {
-    localStorage.setItem("cart", JSON.stringify(cart));
-  }
-
-  function formatYen(amount) {
-    return `¥${Number(amount).toLocaleString()}`;
-  }
-
-  function updateHeaderCartCount() {
-    const cart = getCart();
-    const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
-    const el = document.getElementById("cartCount");
-    if (el) el.textContent = totalQty;
-  }
-
-  // Points: every 10 yen = 1 point
-  function calcPoints(totalYen) {
-    return Math.floor(Number(totalYen) / 10);
-  }
 
   // empty
   if (!cart.length) {
@@ -53,6 +53,7 @@ function renderCart() {
     cartTotalEl.textContent = formatYen(0);
     pointsEl.textContent = "+0";
     emptyMsg.classList.remove("hidden");
+
     proceedBtn.disabled = true;
     proceedBtn.classList.add("opacity-50", "cursor-not-allowed");
     return;
@@ -85,25 +86,14 @@ function renderCart() {
         }</div>
         <div class="text-xs text-white/70 mt-1">${formatYen(price)}</div>
 
-        <!-- qty controls -->
         <div class="mt-2 flex items-center gap-2">
-          <button
-            class="qtyMinus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10"
-            type="button"
-          >
-            -
-          </button>
+          <button class="qtyMinus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10" type="button">-</button>
 
           <div class="px-3 py-1 rounded-lg bg-black/40 border border-purple-500/20 text-sm">
             <span class="qtyVal">${qty}</span>
           </div>
 
-          <button
-            class="qtyPlus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10"
-            type="button"
-          >
-            +
-          </button>
+          <button class="qtyPlus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10" type="button">+</button>
 
           <div class="ml-auto text-xs sm:text-sm text-white/80">
             Subtotal: <span class="font-semibold">${formatYen(
@@ -113,29 +103,19 @@ function renderCart() {
         </div>
       </div>
 
-      <button
-        class="dropBtn px-3 py-2 rounded-xl bg-purple-700/40 hover:bg-purple-700/60 border border-purple-500/25 text-xs"
-        type="button"
-        title="Remove item"
-      >
-        drop it
-      </button>
+      <button class="dropBtn px-3 py-2 rounded-xl bg-purple-700/40 hover:bg-purple-700/60 border border-purple-500/25 text-xs"
+        type="button" title="Remove item">drop it</button>
     `;
 
-    // buttons
-    const minusBtn = row.querySelector(".qtyMinus");
-    const plusBtn = row.querySelector(".qtyPlus");
-    const dropBtn = row.querySelector(".dropBtn");
-
-    minusBtn.addEventListener("click", () => {
+    row.querySelector(".qtyMinus").addEventListener("click", () => {
       changeQty(item.id, -1);
     });
 
-    plusBtn.addEventListener("click", () => {
+    row.querySelector(".qtyPlus").addEventListener("click", () => {
       changeQty(item.id, +1);
     });
 
-    dropBtn.addEventListener("click", () => {
+    row.querySelector(".dropBtn").addEventListener("click", () => {
       removeItem(item.id);
     });
 
@@ -159,8 +139,7 @@ function changeQty(productId, delta) {
 
   // if goes to 0 => remove
   if (next <= 0) {
-    const updated = cart.filter((c) => c.id !== productId);
-    setCart(updated);
+    setCart(cart.filter((c) => c.id !== productId));
     renderCart();
     return;
   }
@@ -172,12 +151,11 @@ function changeQty(productId, delta) {
 
 function removeItem(productId) {
   const cart = getCart();
-  const updated = cart.filter((c) => c.id !== productId);
-  setCart(updated);
+  setCart(cart.filter((c) => c.id !== productId));
   renderCart();
 }
 
-// ---------- proceed ----------
+// ---------- proceed to payment ----------
 proceedBtn.addEventListener("click", () => {
   const cart = getCart();
   if (!cart.length) {
@@ -185,14 +163,12 @@ proceedBtn.addEventListener("click", () => {
     return;
   }
 
-  // save summary for next page if you want
   const total = computeTotals(cart);
   const points = calcPoints(total);
 
   localStorage.setItem("checkoutTotal", String(total));
   localStorage.setItem("checkoutPoints", String(points));
 
-  // change this to your next page:
   window.location.href = "checkout.html";
 });
 
