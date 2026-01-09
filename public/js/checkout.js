@@ -1,6 +1,5 @@
-// js/checkout.js
+const API_BASE = "";
 
-// ---------- elements ----------
 const itemsTotalEl = document.getElementById("itemsTotal");
 const deliveryFeeEl = document.getElementById("deliveryFee");
 const totalYenEl = document.getElementById("totalYen");
@@ -10,17 +9,18 @@ const sealBtn = document.getElementById("sealOrderBtn");
 const errorMsg = document.getElementById("errorMsg");
 const emptyMsg = document.getElementById("emptyMsg");
 
-// points hint elements
 const pointsHint = document.getElementById("pointsHint");
 const userPointsEl = document.getElementById("userPoints");
 const neededPointsEl = document.getElementById("neededPoints");
 
-// payment elements
+// ---------- constants ----------
+const DELIVERY_FEE = 318;
+
 const payRadios = Array.from(
   document.querySelectorAll('input[name="payMethod"]')
 );
 
-// delivery inputs (delivery-only)
+// delivery inputs
 const fullNameEl = document.getElementById("fullName");
 const phoneEl = document.getElementById("phone");
 const postalCodeEl = document.getElementById("postalCode");
@@ -29,10 +29,9 @@ const address2El = document.getElementById("address2");
 const cityEl = document.getElementById("city");
 const prefectureEl = document.getElementById("prefecture");
 
-// ---------- constants ----------
-const DELIVERY_FEE = 318;
-
-const API_BASE = "https://sashisu-realm.vercel.app";
+// stripe UI
+const cardWrap = document.getElementById("cardWrap");
+const cardErrorEl = document.getElementById("card-error");
 
 // ---------- helpers ----------
 function getCart() {
@@ -60,8 +59,6 @@ function setOrders(orders) {
 function formatYen(amount) {
   return `¥${Number(amount).toLocaleString()}`;
 }
-
-// every 10 yen = 1 point
 function calcPointsFromYen(totalYen) {
   return Math.floor(Number(totalYen) / 10);
 }
@@ -89,7 +86,7 @@ function computeItemsTotal(cart) {
 }
 
 function makeOrderId() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return "local_" + String(Math.floor(100000 + Math.random() * 900000));
 }
 
 function getSelectedPayMethod() {
@@ -132,6 +129,38 @@ function deliveryDetailsValid() {
   );
 }
 
+function buildAddressLine(d) {
+  const a2 = d.address2 ? `, ${d.address2}` : "";
+  return `${d.address1}${a2}, ${d.city}, ${d.prefecture}`;
+}
+
+function toggleCardUI() {
+  const method = getSelectedPayMethod();
+  if (cardWrap) cardWrap.classList.toggle("hidden", method !== "card");
+}
+
+// ---------- backend fetch ----------
+async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 // ---------- points UI ----------
 function updatePointsUI(method, grandTotal) {
   if (!pointsHint || !userPointsEl || !neededPointsEl) return;
@@ -139,7 +168,6 @@ function updatePointsUI(method, grandTotal) {
   if (method === "points") {
     const wallet = getUserPoints();
     const need = calcPointsFromYen(grandTotal);
-
     userPointsEl.textContent = wallet.toLocaleString();
     neededPointsEl.textContent = need.toLocaleString();
     pointsHint.classList.remove("hidden");
@@ -151,22 +179,19 @@ function updatePointsUI(method, grandTotal) {
 // ---------- state ----------
 let cart = getCart();
 let itemsTotal = computeItemsTotal(cart);
-let deliveryFee = DELIVERY_FEE;
 let grandTotal = 0;
 let earnedPoints = 0;
 
-// ---------- render summary ----------
+// ---------- render ----------
 function renderSummary() {
   cart = getCart();
   itemsTotal = computeItemsTotal(cart);
 
-  deliveryFee = DELIVERY_FEE;
-  grandTotal = itemsTotal + deliveryFee;
-
+  grandTotal = itemsTotal + DELIVERY_FEE;
   earnedPoints = calcPointsFromYen(grandTotal);
 
   if (itemsTotalEl) itemsTotalEl.textContent = formatYen(itemsTotal);
-  if (deliveryFeeEl) deliveryFeeEl.textContent = formatYen(deliveryFee);
+  if (deliveryFeeEl) deliveryFeeEl.textContent = formatYen(DELIVERY_FEE);
   if (totalYenEl) totalYenEl.textContent = formatYen(grandTotal);
   if (pointsEarnedEl) pointsEarnedEl.textContent = `+${earnedPoints}`;
 
@@ -185,6 +210,48 @@ function renderSummary() {
   }
 
   updatePointsUI(getSelectedPayMethod(), grandTotal);
+  toggleCardUI();
+}
+
+// ---------- stripe setup ----------
+let stripe = null;
+let cardNumber = null;
+let cardExpiry = null;
+let cardCvc = null;
+
+async function initStripe() {
+  const cfg = await apiFetch("/api/payments/config");
+  if (!cfg?.publishableKey) throw new Error("Missing Stripe publishable key");
+
+  stripe = Stripe(cfg.publishableKey);
+  const elements = stripe.elements();
+
+  const style = {
+    base: {
+      color: "#ffffff",
+      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontSize: "16px",
+      "::placeholder": { color: "#9CA3AF" },
+    },
+    invalid: { color: "#FCA5A5" },
+  };
+
+  cardNumber = elements.create("cardNumber", { style });
+  cardExpiry = elements.create("cardExpiry", { style });
+  cardCvc = elements.create("cardCvc", { style });
+
+  cardNumber.mount("#card-number");
+  cardExpiry.mount("#card-expiry");
+  cardCvc.mount("#card-cvc");
+
+  const showStripeError = (e) => {
+    const el = document.getElementById("card-error");
+    if (el) el.textContent = e.error ? e.error.message : "";
+  };
+
+  cardNumber.on("change", showStripeError);
+  cardExpiry.on("change", showStripeError);
+  cardCvc.on("change", showStripeError);
 }
 
 // ---------- events ----------
@@ -210,27 +277,6 @@ payRadios.forEach((r) => {
   });
 });
 
-// ---------- stripe helper ----------
-async function createStripeSession(payload) {
-  const res = await fetch(`${API_BASE}/api/create-checkout-session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await res.text(); // read as text first
-
-  try {
-    const data = JSON.parse(text);
-    if (!res.ok)
-      throw new Error(data?.error || "Failed to create Stripe session");
-    return data;
-  } catch {
-    // shows the HTML/404 page so you can see what you hit
-    throw new Error("Expected JSON but got:\n" + text.slice(0, 200));
-  }
-}
-
 // ---------- seal order ----------
 if (sealBtn) {
   sealBtn.addEventListener("click", async () => {
@@ -247,37 +293,30 @@ if (sealBtn) {
       return;
     }
 
-    // recalc totals (safe)
+    // totals
     itemsTotal = computeItemsTotal(cart);
-    deliveryFee = DELIVERY_FEE;
-    grandTotal = itemsTotal + deliveryFee;
+    grandTotal = itemsTotal + DELIVERY_FEE;
     earnedPoints = calcPointsFromYen(grandTotal);
 
     const method = getSelectedPayMethod();
+    const d = getDeliveryDetails();
 
-    // build order object (don’t save yet for Stripe card)
-    const pendingOrder = {
-      orderId: makeOrderId(),
-      itemsTotal,
-      deliveryFee,
-      total: grandTotal,
-      status: "Pre-Owned",
-      deliveryMethod: "Delivery",
-      deliveryDetails: getDeliveryDetails(),
-      paymentMethod:
-        method === "points" ? "Prison Realm Points" : "Credit/Debit Card",
-      pointsEarned: earnedPoints,
-      createdAt: new Date().toISOString(),
+    // build order payload for backend
+    const orderPayload = {
       items: cart.map((c) => ({
-        id: c.id,
-        name: c.name,
-        price: c.price,
-        qty: c.qty,
-        image: c.image,
+        productId: String(c.id),
+        qty: Number(c.qty || 1),
       })),
+      shippingCents: DELIVERY_FEE,
+      recipientName: d.fullName,
+      email: null,
+      phone: d.phone,
+      addressLine: buildAddressLine(d),
+      postalCode: d.postalCode,
+      stripePaymentIntentId: null,
     };
 
-    // POINTS METHOD (same as your current logic, but go to confirmed page)
+    // ---- POINTS (local demo) ----
     if (method === "points") {
       const wallet = getUserPoints();
       const need = calcPointsFromYen(grandTotal);
@@ -287,45 +326,105 @@ if (sealBtn) {
         return;
       }
 
-      // deduct points
+      // deduct + earn (local)
       setUserPoints(wallet - need);
+      const walletNow = getUserPoints();
+      setUserPoints(walletNow + earnedPoints);
 
-      // save order
+      // store local order
+      const pendingOrder = {
+        orderId: makeOrderId(),
+        itemsTotal,
+        deliveryFee: DELIVERY_FEE,
+        total: grandTotal,
+        status: "PAID",
+        deliveryMethod: "Delivery",
+        deliveryDetails: d,
+        paymentMethod: "Prison Realm Points",
+        pointsEarned: earnedPoints,
+        createdAt: new Date().toISOString(),
+        items: cart.map((c) => ({
+          id: c.id,
+          name: c.name,
+          price: c.price,
+          qty: c.qty,
+          image: c.image,
+        })),
+      };
+
       const orders = getOrders();
       orders.push(pendingOrder);
       setOrders(orders);
 
-      // earn points after purchase
-      const walletNow = getUserPoints();
-      setUserPoints(walletNow + earnedPoints);
-
-      // clear cart
       setCart([]);
       updateHeaderCartCount();
 
-      alert("Order sealed successfully. Points payment confirmed.");
       window.location.href = "confirmed.html";
       return;
     }
 
-    // CARD METHOD (Stripe)
+    // ---- CARD (stripe paymentIntent + backend order) ----
     try {
-      // save pending order locally (finalize only after Stripe success)
-      localStorage.setItem("pendingOrder", JSON.stringify(pendingOrder));
+      // must be logged in to create PI because endpoint is protected
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showError("Login required before card payment.");
+        window.location.href = "login.html";
+        return;
+      }
 
-      // create stripe session
-      const session = await createStripeSession({
-        orderId: pendingOrder.orderId,
-        cart: pendingOrder.items,
-        deliveryFee: pendingOrder.deliveryFee,
-        currency: "jpy",
+      if (!stripe || !cardNumber || !cardExpiry || !cardCvc) {
+        showError("Stripe is not ready yet. Refresh and try again.");
+        return;
+      }
+
+      // get email from backend session
+      const me = await apiFetch("/api/me");
+      orderPayload.email = me.email;
+
+      // 1) create PaymentIntent (server calculates totals from DB)
+      const pi = await apiFetch("/api/payments/create-payment-intent", {
+        method: "POST",
+        body: JSON.stringify({
+          items: orderPayload.items,
+          shippingCents: DELIVERY_FEE,
+        }),
       });
 
-      // redirect to Stripe-hosted checkout
-      window.location.href = session.url;
+      // 2) confirm payment in browser
+      const cardNameEl = document.getElementById("cardName");
+      const cardholderName = (cardNameEl?.value || "").trim();
+      if (!cardholderName) {
+        showError("Please enter the name on card.");
+        return;
+      }
+
+      const result = await stripe.confirmCardPayment(pi.clientSecret, {
+        payment_method: {
+          card: cardNumber,
+          billing_details: { name: cardholderName },
+        },
+      });
+
+      // 3) store order in DB
+      orderPayload.stripePaymentIntentId = result.paymentIntent.id;
+
+      const created = await apiFetch("/api/orders", {
+        method: "POST",
+        body: JSON.stringify(orderPayload),
+      });
+
+      // clear cart + go confirmed (you can show orderId later)
+      setCart([]);
+      updateHeaderCartCount();
+
+      // store for confirmed page if you want
+      localStorage.setItem("lastOrderId", created.orderId);
+
+      window.location.href = "confirmed.html";
     } catch (e) {
       console.error(e);
-      showError(e?.message || "Stripe checkout failed. Try again.");
+      showError(e?.message || "Card checkout failed.");
     }
   });
 }
@@ -341,7 +440,6 @@ if (menuBtn && sideMenu) {
     sideMenu.classList.add("translate-x-0");
   });
 }
-
 if (closeMenuBtn && sideMenu) {
   closeMenuBtn.addEventListener("click", () => {
     sideMenu.classList.add("translate-x-[-110%]");
@@ -352,3 +450,4 @@ if (closeMenuBtn && sideMenu) {
 // ---------- init ----------
 updateHeaderCartCount();
 renderSummary();
+initStripe().catch((e) => showError(e.message || "Stripe init failed"));

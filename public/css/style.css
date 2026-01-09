@@ -22,8 +22,8 @@
 }
 
 .go a:hover {
-  transform: scale(1.08); /* make text bigger */
-  color: #c084fc; /* purple-300 vibe */
+  transform: scale(1.08);
+  color: #c084fc;
 }
 
 .anime-text {
@@ -112,6 +112,10 @@ label {
 /* remove gap after last option */
 .payment-options label:last-of-type {
   margin-bottom: 0;
+}
+
+.cardWrap {
+  margin-bottom: 25px;
 }
 
 .goback-cartout {

@@ -1,4 +1,3 @@
-// ---------- elements ----------
 const cartList = document.getElementById("cartList");
 const cartTotalEl = document.getElementById("cartTotal");
 const pointsEl = document.getElementById("pointsEarned");

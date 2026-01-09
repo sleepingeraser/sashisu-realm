@@ -1,5 +1,3 @@
-// js/confirmed.js
-
 document.getElementById("viewOrdersBtn").addEventListener("click", () => {
   window.location.href = "orders.html";
 });
