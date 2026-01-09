@@ -102,6 +102,23 @@ label {
   padding: 6px 8px; /* top/bottom | left/right */
 }
 
+/* cart */
+
+.cart-card {
+  margin-bottom: 25px;
+}
+
+.listItem {
+  margin-left: 25px;
+}
+
+.itemTitle {
+  margin-top: 15px;
+  padding-left: 25px;
+}
+
+.quantity{margin-left: -20px;}
+
 /* checkout – payment options spacing */
 .payment-options label,
 .delivery-options label {

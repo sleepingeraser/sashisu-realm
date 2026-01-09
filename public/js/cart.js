@@ -73,19 +73,19 @@ function renderCart() {
       "flex items-center gap-3 rounded-2xl bg-black/35 border border-purple-500/15 p-3";
 
     row.innerHTML = `
-      <div class="w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-black/30 flex-shrink-0">
+      <div class="listItem w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-black/30 flex-shrink-0">
         <img src="${item.image}" alt="${
       item.name
     }" class="w-full h-full object-cover" />
       </div>
 
-      <div class="flex-1 min-w-0">
+      <div class="itemTitle flex-1 min-w-0">
         <div class="text-sm sm:text-base font-semibold text-white/95 truncate">${
           item.name
         }</div>
         <div class="text-xs text-white/70 mt-1">${formatYen(price)}</div>
 
-        <div class="mt-2 flex items-center gap-2">
+        <div class="quantity flex items-center gap-2">
           <button class="qtyMinus px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10" type="button">-</button>
 
           <div class="px-3 py-1 rounded-lg bg-black/40 border border-purple-500/20 text-sm">
