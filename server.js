@@ -1,77 +1,100 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-const Stripe = require("stripe");
+const { sql, getPool } = require("./config/dbConfig");
 
 const app = express();
 
-// ---- CONFIG ----
-const PORT = process.env.PORT || 3000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
-
-// stripe secret key (server-side ONLY)
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("Missing STRIPE_SECRET_KEY in environment variables");
-  process.exit(1);
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// ---- MIDDLEWARE ----
-app.use(
-  cors({
-    origin: CLIENT_ORIGIN === "*" ? true : CLIENT_ORIGIN,
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
-
+app.use(cors());
 app.use(express.json());
 
-// ---- ROUTES ----
-app.get("/", (req, res) => {
-  res.send("Sashisu Realm Stripe API is running ✅");
+// serve your frontend from /public
+app.use(express.static("public"));
+
+function safeInt(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.floor(n));
+}
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true });
 });
 
-// create paymentIntent (card only)
-app.post("/create-payment-intent", async (req, res) => {
+// GET /api/products?offset=0&limit=9
+app.get("/api/products", async (req, res) => {
   try {
-    const { amount, orderId, customerEmail } = req.body;
+    const offset = safeInt(req.query.offset, 0);
+    const limitRaw = safeInt(req.query.limit, 9);
+    const limit = Math.min(Math.max(limitRaw, 1), 30); // clamp 1..30
 
-    // basic validation
-    if (!Number.isInteger(amount) || amount <= 0) {
-      return res
-        .status(400)
-        .json({ error: "Invalid amount. Must be integer cents > 0." });
-    }
+    const pool = await getPool();
 
-    // Ssafety limit
-    if (amount > 500000) {
-      return res.status(400).json({ error: "Amount too large." });
-    }
+    // total active products
+    const countResult = await pool.request().query(`
+      SELECT COUNT(*) AS total
+      FROM Products
+      WHERE IsActive = 1
+    `);
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: "sgd",
+    const total = countResult.recordset[0]?.total ?? 0;
 
-      // card only, no redirects
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never",
-      },
+    // paged products
+    const request = pool.request();
+    request.input("offset", sql.Int, offset);
+    request.input("limit", sql.Int, limit);
 
-      metadata: {
-        orderId: orderId || "N/A",
-        customerEmail: customerEmail || "N/A",
-      },
+    const itemsResult = await request.query(`
+      SELECT
+        Id AS id,
+        Name AS name,
+        Price AS price,
+        Category AS category,
+        Image AS image,
+        Tags AS tags
+      FROM Products
+      WHERE IsActive = 1
+      ORDER BY Id
+      OFFSET @offset ROWS
+      FETCH NEXT @limit ROWS ONLY
+    `);
+
+    const products = (itemsResult.recordset || []).map((p) => {
+      // tags is stored as a JSON string like ["aot","uno"]
+      let tagsArr = [];
+      try {
+        const parsed = JSON.parse(p.tags);
+        if (Array.isArray(parsed)) tagsArr = parsed;
+      } catch {
+        tagsArr = [];
+      }
+
+      // normalize image to start with /
+      let img = p.image || "";
+      if (img && !img.startsWith("/")) img = "/" + img;
+
+      return {
+        id: p.id,
+        name: p.name,
+        price: Number(p.price || 0),
+        category: p.category,
+        image: img,
+        tags: tagsArr,
+      };
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    const hasMore = offset + products.length < total;
+
+    res.json({ products, hasMore });
   } catch (err) {
-    console.error("Stripe error:", err);
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running: http://localhost:${PORT}`);
 });
