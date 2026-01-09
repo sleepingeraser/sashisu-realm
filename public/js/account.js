@@ -42,7 +42,7 @@ function getUserPoints(user) {
 function displayUserInfo() {
   const user = getUser();
 
-  // If not logged in / no token, send them to login
+  // ff not logged in / no token, send them to login
   const token = localStorage.getItem("token");
   if (!token) {
     window.location.href = "login.html";
@@ -53,7 +53,7 @@ function displayUserInfo() {
   const emailEl = document.getElementById("emailText");
   const pointsEl = document.getElementById("pointsText");
 
-  // Name: codename > username > email prefix > fallback
+  // name: codename > username > email prefix > fallback
   const name =
     (user && (user.codename || user.username)) ||
     (user && user.email ? user.email.split("@")[0] : "") ||
