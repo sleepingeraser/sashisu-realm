@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes); 
+app.use("/api/payments", paymentRoutes);
 
 // health check
 app.get("/health", (req, res) => res.json({ ok: true }));
