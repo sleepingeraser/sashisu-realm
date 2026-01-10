@@ -18,7 +18,48 @@ function updateHeaderCartCount() {
   if (el) el.textContent = totalQty;
 }
 
-function getOrders() {
+// ---------- fetch orders from backend ----------
+async function fetchOrdersFromBackend() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.log("No token found, redirecting to login");
+    window.location.href = "login.html";
+    return [];
+  }
+
+  try {
+    const response = await fetch("http://localhost:3000/api/orders", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.status === 401) {
+      // token expired
+      localStorage.removeItem("token");
+      localStorage.removeItem("currentUser");
+      window.location.href = "login.html";
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.orders) {
+      // save orders to localStorage for offline viewing
+      localStorage.setItem("orders", JSON.stringify(data.orders));
+      return data.orders;
+    } else {
+      console.error("Failed to fetch orders:", data.message);
+      return [];
+    }
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    // fallback to localStorage if fetch fails
+    return getOrdersFromLocalStorage();
+  }
+}
+
+function getOrdersFromLocalStorage() {
   try {
     return JSON.parse(localStorage.getItem("orders")) || [];
   } catch {
@@ -30,16 +71,19 @@ function getOrders() {
 const ordersList = document.getElementById("ordersList");
 const emptyOrders = document.getElementById("emptyOrders");
 
-function renderOrders() {
-  const orders = getOrders();
+async function renderOrders() {
+  console.log("Rendering orders...");
 
-  // newest first (by date if you stored it, else by id string)
-  orders.sort((a, b) => {
-    const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    if (bd !== ad) return bd - ad;
-    return String(b.orderId || "").localeCompare(String(a.orderId || ""));
-  });
+  // try to fetch fresh orders from backend
+  let orders = await fetchOrdersFromBackend();
+
+  // if no orders from backend, try localStorage
+  if (!orders || orders.length === 0) {
+    orders = getOrdersFromLocalStorage();
+  }
+
+  // sort newest first
+  orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   if (!orders.length) {
     ordersList.innerHTML = "";
@@ -50,29 +94,104 @@ function renderOrders() {
   emptyOrders.classList.add("hidden");
   ordersList.innerHTML = "";
 
-  orders.forEach((o) => {
-    const orderId = o.orderId || "??????";
-    const total = Number(o.total || 0);
-    const status = o.status || "Pre-Owned"; // your vibe
-    const statusClass = status.toLowerCase().includes("pre")
-      ? "text-white/90"
-      : "text-green-300";
+  console.log(`Displaying ${orders.length} orders`);
 
-    const card = document.createElement("a");
-    card.href = `order-details.html?orderId=${encodeURIComponent(orderId)}`;
+  orders.forEach((order) => {
+    const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+    const formattedDate = orderDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // payment method badge
+    let paymentBadge = "";
+    if (order.paymentMethod === "points") {
+      paymentBadge = `<span class="px-2 py-1 text-xs rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-700/50">
+                        <i class="fa-solid fa-coins mr-1"></i>Points Payment
+                      </span>`;
+    } else {
+      paymentBadge = `<span class="px-2 py-1 text-xs rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50">
+                        <i class="fa-solid fa-credit-card mr-1"></i>Card Payment
+                      </span>`;
+    }
+
+    // status badge
+    let statusBadge = "";
+    if (order.status === "PAID") {
+      statusBadge = `<span class="px-2 py-1 text-xs rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
+                       <i class="fa-solid fa-check mr-1"></i>Paid
+                     </span>`;
+    } else {
+      statusBadge = `<span class="px-2 py-1 text-xs rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-700/50">
+                       <i class="fa-solid fa-clock mr-1"></i>Processing
+                     </span>`;
+    }
+
+    // Points info
+    let pointsInfo = "";
+    if (order.pointsUsed > 0) {
+      pointsInfo += `
+        <div class="flex items-center text-sm text-yellow-300 mt-1">
+          <i class="fa-solid fa-coins mr-2"></i>
+          <span>Used ${order.pointsUsed} points</span>
+        </div>`;
+    }
+    if (order.pointsEarned > 0) {
+      pointsInfo += `
+        <div class="flex items-center text-sm text-green-300 mt-1">
+          <i class="fa-solid fa-star mr-2"></i>
+          <span>Earned ${order.pointsEarned} points</span>
+        </div>`;
+    }
+
+    const card = document.createElement("div");
     card.className =
-      "box block rounded-2xl bg-black/35 border border-purple-500/20 backdrop-blur-md " +
-      "hover:bg-black/45 transition shadow-lg shadow-purple-700/10 p-4";
+      "box block rounded-2xl bg-black/35 border border-purple-500/20 backdrop-blur-md hover:bg-black/45 transition-all duration-300 shadow-lg shadow-purple-700/10 p-4 mb-4";
 
     card.innerHTML = `
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <div class=" text-sm text-white/70">Order number <span class="text-green-300 font-semibold">${orderId}</span></div>
-          <div class="text-lg font-semibold ${statusClass} mt-1">${status}</div>
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-white/70">Order #${
+            order.orderId || order.Id || "N/A"
+          }</div>
+          <div class="text-xs text-white/50">${formattedDate}</div>
         </div>
-
-        <div class="text-lg sm:text-xl font-bold text-white/95">
-          ${formatYen(total)}
+        
+        <div class="flex items-center gap-2">
+          ${paymentBadge}
+          ${statusBadge}
+        </div>
+        
+        <div class="text-2xl font-bold text-white mt-2">
+          ${formatYen(order.totalYen || order.totalCents / 100 || 0)}
+        </div>
+        
+        <div class="text-sm text-white/80">
+          ${order.recipientName || "Customer"}
+        </div>
+        
+        ${pointsInfo}
+        
+        <div class="flex items-center justify-between text-xs text-white/60 mt-3 pt-3 border-t border-white/10">
+          <div>
+            <i class="fa-solid fa-box mr-1"></i>
+            Items: ¥${(
+              order.subtotalYen ||
+              order.subtotalCents / 100 ||
+              0
+            ).toLocaleString()}
+          </div>
+          <div>
+            <i class="fa-solid fa-truck mr-1"></i>
+            Shipping: ¥${(
+              order.shippingYen ||
+              order.shippingCents / 100 ||
+              318
+            ).toLocaleString()}
+          </div>
         </div>
       </div>
     `;
@@ -100,3 +219,9 @@ document.getElementById("closeMenuBtn").addEventListener("click", () => {
 // ---------- init ----------
 updateHeaderCartCount();
 renderOrders();
+
+// refresh orders every 30 seconds if user stays on page
+setInterval(() => {
+  console.log("Refreshing orders...");
+  renderOrders();
+}, 30000);
