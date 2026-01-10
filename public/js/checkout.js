@@ -9,6 +9,8 @@ let currentPaymentMethod = "card"; // 'card' or 'points'
 let userPoints = 0;
 let orderTotalYen = 0;
 let orderTotalPoints = 0;
+let isCardValid = false;
+let isDeliveryFormValid = false;
 
 // ============ token management ============
 function getAuthToken() {
@@ -74,9 +76,12 @@ async function initializeStripe() {
       const displayError = document.getElementById("card-errors");
       if (event.error) {
         displayError.textContent = event.error.message;
+        isCardValid = false;
       } else {
         displayError.textContent = "";
+        isCardValid = event.complete || false;
       }
+      updatePaymentButtonState();
     });
 
     console.log("Stripe initialized successfully");
@@ -84,6 +89,8 @@ async function initializeStripe() {
     console.error("Failed to initialize Stripe:", error);
     document.getElementById("card-errors").textContent =
       "Payment system initialization failed. Please refresh the page.";
+    isCardValid = false;
+    updatePaymentButtonState();
   }
 }
 
@@ -189,6 +196,9 @@ function updatePointsDisplay() {
         "mt-4 text-sm p-3 rounded-lg bg-yellow-900/20 border border-yellow-500/30";
     }
   }
+
+  // Update main payment button state
+  updatePaymentButtonState();
 }
 
 // ============ payment method toggle ============
@@ -236,8 +246,8 @@ function setupPaymentMethodToggle() {
           "text-sm sm:text-base font-semibold text-yellow-300";
       }
 
-      // Update payment button text
-      updatePaymentButton();
+      // Update payment button state
+      updatePaymentButtonState();
     });
   });
 
@@ -245,30 +255,127 @@ function setupPaymentMethodToggle() {
   document.querySelector('.payment-option[data-option="card"]').click();
 }
 
-// ============ update payment button ============
-function updatePaymentButton() {
+// ============ check delivery form validation ============
+function checkDeliveryForm() {
+  const delivery = getDeliveryData();
+  const errors = validateDelivery(delivery);
+  isDeliveryFormValid = !errors;
+  return isDeliveryFormValid;
+}
+
+// ============ update payment button state ============
+function updatePaymentButtonState() {
   const sealBtn = document.getElementById("sealOrderBtn");
   if (!sealBtn) return;
 
-  if (currentPaymentMethod === "card") {
-    sealBtn.innerHTML =
-      '<i class="fa-solid fa-lock mr-2"></i>Pay with Credit Card';
-    sealBtn.className =
-      "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300";
-  } else if (currentPaymentMethod === "points") {
-    const pointsNeeded = Math.floor(orderTotalYen / 10);
+  // Check if cart is empty
+  const cart = getCart();
+  if (!cart.length) {
+    sealBtn.disabled = true;
+    sealBtn.classList.add("opacity-50", "cursor-not-allowed");
+    sealBtn.classList.remove("hover:from-purple-700", "hover:to-indigo-700");
+    return;
+  }
 
-    if (userPoints >= pointsNeeded) {
-      sealBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
-      sealBtn.className =
-        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300";
-    } else {
+  // Check if delivery form is valid
+  const isDeliveryValid = checkDeliveryForm();
+
+  if (currentPaymentMethod === "card") {
+    // For credit card: need valid card AND valid delivery form
+    const canPay = isCardValid && isDeliveryValid;
+
+    if (canPay) {
+      sealBtn.disabled = false;
+      sealBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      sealBtn.classList.add("hover:from-purple-700", "hover:to-indigo-700");
       sealBtn.innerHTML =
-        '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
-      sealBtn.className =
-        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
+        '<i class="fa-solid fa-lock mr-2"></i>Pay with Credit Card';
+    } else {
       sealBtn.disabled = true;
+      sealBtn.classList.add("opacity-50", "cursor-not-allowed");
+      sealBtn.classList.remove("hover:from-purple-700", "hover:to-indigo-700");
+
+      if (!isDeliveryValid) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-triangle-exclamation mr-2"></i>Complete Delivery Details';
+      } else if (!isCardValid) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-credit-card mr-2"></i>Complete Card Details';
+      }
     }
+  } else if (currentPaymentMethod === "points") {
+    // For points: need sufficient points AND valid delivery form
+    const pointsNeeded = Math.floor(orderTotalYen / 10);
+    const hasEnoughPoints = userPoints >= pointsNeeded;
+    const canPay = hasEnoughPoints && isDeliveryValid;
+
+    if (canPay) {
+      sealBtn.disabled = false;
+      sealBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      sealBtn.classList.add("hover:from-yellow-700", "hover:to-orange-700");
+      sealBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
+      sealBtn.className = sealBtn.className.replace(
+        /from-[^\s]+ to-[^\s]+/,
+        "from-yellow-600 to-orange-600"
+      );
+    } else {
+      sealBtn.disabled = true;
+      sealBtn.classList.add("opacity-50", "cursor-not-allowed");
+      sealBtn.classList.remove("hover:from-yellow-700", "hover:to-orange-700");
+
+      if (!isDeliveryValid) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-triangle-exclamation mr-2"></i>Complete Delivery Details';
+        sealBtn.className = sealBtn.className.replace(
+          /from-[^\s]+ to-[^\s]+/,
+          "from-purple-600 to-indigo-600"
+        );
+      } else if (!hasEnoughPoints) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
+        sealBtn.className = sealBtn.className.replace(
+          /from-[^\s]+ to-[^\s]+/,
+          "from-gray-600 to-gray-700"
+        );
+      }
+    }
+  }
+}
+
+// ============ setup form validation listeners ============
+function setupFormValidation() {
+  // Get all delivery form inputs
+  const deliveryInputs = [
+    "fullName",
+    "phone",
+    "postalCode",
+    "address1",
+    "city",
+    "prefecture",
+  ];
+
+  // Add input event listeners to all delivery fields
+  deliveryInputs.forEach((fieldId) => {
+    const input = document.getElementById(fieldId);
+    if (input) {
+      input.addEventListener("input", () => {
+        updatePaymentButtonState();
+      });
+      input.addEventListener("blur", () => {
+        updatePaymentButtonState();
+      });
+    }
+  });
+
+  // Also listen for card name input
+  const cardNameInput = document.getElementById("cardName");
+  if (cardNameInput) {
+    cardNameInput.addEventListener("input", () => {
+      // Card name is required for card payments
+      if (currentPaymentMethod === "card") {
+        updatePaymentButtonState();
+      }
+    });
   }
 }
 
@@ -314,6 +421,16 @@ async function handlePayment() {
     console.log("Payment method:", currentPaymentMethod);
 
     if (currentPaymentMethod === "card") {
+      // Validate card before proceeding
+      if (!isCardValid) {
+        throw new Error("Please complete your card details");
+      }
+
+      const cardName = document.getElementById("cardName")?.value.trim();
+      if (!cardName) {
+        throw new Error("Please enter the name on your card");
+      }
+
       // Credit card payment
       await processCreditCardPayment(token, items, delivery);
     } else if (currentPaymentMethod === "points") {
@@ -325,6 +442,7 @@ async function handlePayment() {
     cardError.textContent = error.message;
     sealBtn.disabled = false;
     sealBtn.innerHTML = originalText;
+    updatePaymentButtonState();
   }
 }
 
@@ -428,7 +546,6 @@ async function processPointsPayment(token, items, delivery) {
   }
 
   // For points payment, we'll create an order without Stripe
-  // In a real app, you'd have a backend endpoint for points payment
   try {
     // Create order with points payment method
     await createOrder(
@@ -579,19 +696,21 @@ function renderTotals() {
   const cart = getCart();
 
   const emptyMsg = document.getElementById("emptyMsg");
-  const detailsCard = document.querySelector(".details");
+  const detailsCard = document.querySelector(".container");
   const sealBtn = document.getElementById("sealOrderBtn");
 
   if (!cart.length) {
     if (detailsCard) detailsCard.classList.add("hidden");
     if (emptyMsg) emptyMsg.classList.remove("hidden");
-    if (sealBtn) sealBtn.disabled = true;
+    if (sealBtn) {
+      sealBtn.disabled = true;
+      sealBtn.classList.add("opacity-50", "cursor-not-allowed");
+    }
     return;
   }
 
   if (detailsCard) detailsCard.classList.remove("hidden");
   if (emptyMsg) emptyMsg.classList.add("hidden");
-  if (sealBtn) sealBtn.disabled = false;
 
   const itemsTotal = calculateCartTotal();
   const deliveryFee = 318;
@@ -642,8 +761,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     // setup payment method toggle
     setupPaymentMethodToggle();
 
+    // setup form validation listeners
+    setupFormValidation();
+
     // initialize Stripe
     await initializeStripe();
+
+    // Initial button state update
+    updatePaymentButtonState();
   } catch (error) {
     console.error("Initialization error:", error);
   }
