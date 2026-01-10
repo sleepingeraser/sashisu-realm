@@ -138,10 +138,10 @@
                   <!-- stripe card input -->
                   <section
                     id="cardWrap"
-                    class="cardWrap ox mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6"
+                    class="cardWrap mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6"
                   >
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <!-- name on card -->
+                      <!-- name on card (normal input is OK) -->
                       <div class="sm:col-span-2">
                         <label
                           class="field-title block text-sm text-white/80 mb-2"
@@ -153,60 +153,46 @@
                           type="text"
                           placeholder="e.g. Koyuki Sky"
                           autocomplete="cc-name"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
                         />
                       </div>
 
-                      <!-- card number -->
+                      <!-- card number (Stripe Element) -->
                       <div class="sm:col-span-2">
                         <label
                           class="field-title block text-sm text-white/80 mb-2"
                         >
                           Card Number
                         </label>
-                        <input
+                        <div
                           id="card-number"
-                          type="text"
-                          placeholder="1234 1234 1234 1234"
-                          autocomplete="cc-number"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
-                        />
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
+                        ></div>
                       </div>
 
-                      <!-- MM/YY -->
+                      <!-- MM/YY (Stripe Element) -->
                       <div>
                         <label
                           class="field-title block text-sm text-white/80 mb-2"
                         >
                           MM/YY
                         </label>
-                        <input
+                        <div
                           id="card-expiry"
-                          type="text"
-                          placeholder="MM/YY"
-                          autocomplete="cc-expiry"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
-                        />
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
+                        ></div>
                       </div>
 
-                      <!-- CVC -->
+                      <!-- CVC (Stripe Element) -->
                       <div>
                         <label
                           class="field-title block text-sm text-white/80 mb-2"
                         >
                           CVC
                         </label>
-                        <input
-                          id="card-cvc"
-                          type="text"
-                          placeholder="123"
-                          autocomplete="cc-cvc"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
-                        />
-
                         <div
                           id="card-cvc"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
                         ></div>
                       </div>
 

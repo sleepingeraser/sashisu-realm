@@ -3,7 +3,6 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -16,24 +15,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// serve frontend files from "public"
+// serve frontend files from a folder like "public"
+const path = require("path");
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ serve homepage
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+// ---------- routes ----------
+app.get("/", (req, res) => res.json({ message: "Sashisu Realm API running" }));
 
-// ---------- api routes ----------
 app.use("/api", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
-
-// ✅ optional: handle refresh on routes like /login.html
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public", "index.html"));
-// });
 
 // ---------- fallback ----------
 app.use((req, res) => {
