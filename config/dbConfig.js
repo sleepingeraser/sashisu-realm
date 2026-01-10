@@ -23,10 +23,10 @@ async function getPool() {
 
   try {
     pool = await sql.connect(dbConfig);
-    console.log("✅ Connected to MSSQL");
+    console.log("Connected to MSSQL");
     return pool;
   } catch (err) {
-    console.error("❌ MSSQL connection failed:", err);
+    console.error("MSSQL connection failed:", err);
     throw err;
   }
 }
