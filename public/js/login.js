@@ -25,10 +25,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       body: JSON.stringify({ email, password }),
     });
 
-    console.log("Response status:", res.status);
-
     const responseText = await res.text();
-    console.log("Raw response:", responseText);
+    console.log("Raw login response:", responseText);
 
     let data;
     try {
@@ -45,17 +43,24 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       return;
     }
 
-    // store token and user data
-    console.log("Login successful, token received:", data.token ? "Yes" : "No");
-    console.log("User data:", data.user);
+    // CRITICAL: Check if we got a real token
+    console.log("Token received from server:", data.token);
+    console.log("Token type:", typeof data.token);
+    console.log("Token length:", data.token?.length);
 
+    if (!data.token || data.token === "aizawa-approved-token") {
+      console.error("Invalid token received from server");
+      alert("Login failed: Invalid token received");
+      loginBtn.disabled = false;
+      loginBtn.textContent = originalText;
+      return;
+    }
+
+    // Store the REAL token
     localStorage.setItem("token", data.token);
     localStorage.setItem("currentUser", JSON.stringify(data.user));
 
-    // store user points
-    if (data.user.points) {
-      localStorage.setItem("points", data.user.points);
-    }
+    console.log("Token saved to localStorage. User data:", data.user);
 
     alert("Login successful!");
     window.location.href = "browse.html";
