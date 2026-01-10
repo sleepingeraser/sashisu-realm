@@ -28,24 +28,26 @@ function getUser() {
   }
 }
 
-function getUserPoints(user) {
-  // support multiple storage styles so your project won’t break:
-  // 1) user.points
-  // 2) localStorage.points
-  // 3) localStorage.userPoints
-  if (user && typeof user.points === "number") return user.points;
+async function fetchUserPoints() {
+  const token = localStorage.getItem("token");
+  if (!token) return 0;
 
-  const p1 = Number(localStorage.getItem("points"));
-  if (!Number.isNaN(p1) && p1 >= 0) return p1;
+  try {
+    const response = await fetch("http://localhost:3000/api/auth/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-  const p2 = Number(localStorage.getItem("userPoints"));
-  if (!Number.isNaN(p2) && p2 >= 0) return p2;
-
-  return 0;
+    const data = await response.json();
+    return data.user?.points || 0;
+  } catch (err) {
+    console.error("Failed to fetch user points:", err);
+    return 0;
+  }
 }
 
-function displayUserInfo() {
-  // if not logged in / no token, send them to login
+async function displayUserInfo() {
   const token = localStorage.getItem("token");
   if (!token) {
     window.location.href = "login.html";
@@ -76,8 +78,22 @@ function displayUserInfo() {
   if (nameEl) nameEl.textContent = name;
   if (emailEl) emailEl.textContent = (user && user.email) || "unknown@realm.jp";
 
-  const points = getUserPoints(user);
-  if (pointsEl) pointsEl.textContent = Number(points).toLocaleString();
+  // fetch fresh points from server
+  try {
+    const points = await fetchUserPoints();
+    if (pointsEl) {
+      pointsEl.textContent = Number(points).toLocaleString();
+      // update localStorage
+      if (user) {
+        user.points = points;
+        localStorage.setItem("currentUser", JSON.stringify(user));
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch points, using cached:", err);
+    const cachedPoints = user?.points || 0;
+    if (pointsEl) pointsEl.textContent = Number(cachedPoints).toLocaleString();
+  }
 }
 
 // ---------- sidebar ----------
@@ -104,10 +120,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 
 function logoutAndExit() {
-  // remove token + user info
   localStorage.removeItem("token");
   localStorage.removeItem("currentUser");
   localStorage.removeItem("user");
+  localStorage.removeItem("cart");
+  localStorage.removeItem("orders");
   window.location.href = "login.html";
 }
 
