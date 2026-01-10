@@ -1,7 +1,7 @@
 // ============ configuration ============
 const API_BASE = "http://localhost:3000/api";
 
-// ============ stripe elements ============
+// ============ global variables ============
 let stripe;
 let elements;
 let cardElement;
@@ -9,11 +9,20 @@ let cardElement;
 // ============ initialize stripe ============
 async function initializeStripe() {
   try {
-    // Get publishable key from backend
-    const response = await fetch(`${API_BASE}/payments/config`);
-    const { publishableKey } = await response.json();
+    console.log("Initializing Stripe...");
 
-    stripe = Stripe(publishableKey);
+    // get publishable key from backend
+    const response = await fetch(`${API_BASE}/payments/config`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || "Failed to get Stripe config");
+    }
+
+    console.log("Got publishable key:", data.publishableKey ? "Yes" : "No");
+
+    // initialize Stripe
+    stripe = Stripe(data.publishableKey);
 
     // initialize Elements
     elements = stripe.elements();
@@ -35,7 +44,12 @@ async function initializeStripe() {
       },
     };
 
-    cardElement = elements.create("card", { style: style });
+    // mount card element
+    cardElement = elements.create("card", {
+      style: style,
+      hidePostalCode: true,
+    });
+
     cardElement.mount("#card-element");
 
     // handle real-time validation errors
@@ -47,9 +61,12 @@ async function initializeStripe() {
         displayError.textContent = "";
       }
     });
+
+    console.log("Stripe initialized successfully");
   } catch (error) {
     console.error("Failed to initialize Stripe:", error);
-    alert("Payment system initialization failed. Please refresh the page.");
+    document.getElementById("card-errors").textContent =
+      "Payment system initialization failed. Please refresh the page.";
   }
 }
 
@@ -64,32 +81,35 @@ async function handlePayment() {
     sealBtn.textContent = "Processing...";
     cardError.textContent = "";
 
-    // get cart data
+    // 1. validate cart
     const cart = getCart();
     if (!cart.length) {
       throw new Error("Your cart is empty");
     }
 
-    // format items for backend
-    const items = cart.map((item) => ({
-      productId: item.id,
-      qty: item.qty || 1,
-    }));
-
-    // G\get delivery info
+    // 2. validate delivery info
     const delivery = getDeliveryData();
     const deliveryErr = validateDelivery(delivery);
     if (deliveryErr) {
       throw new Error(deliveryErr);
     }
 
-    // create payment intent on backend
+    // 3. get auth token
     const token = localStorage.getItem("token");
     if (!token) {
       window.location.href = "login.html";
       return;
     }
 
+    // 4. format items for backend
+    const items = cart.map((item) => ({
+      productId: String(item.id),
+      qty: Number(item.qty || 1),
+    }));
+
+    console.log("Sending payment request with items:", items);
+
+    // 5. create payment intent on backend
     const response = await fetch(`${API_BASE}/payments/create-payment-intent`, {
       method: "POST",
       headers: {
@@ -98,32 +118,37 @@ async function handlePayment() {
       },
       body: JSON.stringify({
         items: items,
-        shippingCents: 318, // fixed shipping fee
+        shippingCents: 318,
       }),
     });
 
-    const { clientSecret, paymentIntentId } = await response.json();
+    const data = await response.json();
+    console.log("Payment intent response:", data);
 
-    if (!clientSecret) {
+    if (!data.success) {
+      throw new Error(data.message || "Payment setup failed");
+    }
+
+    if (!data.clientSecret) {
       throw new Error("No client secret received from server");
     }
 
-    // confirm card payment
+    // 6. confirm card payment
     const { paymentIntent, error } = await stripe.confirmCardPayment(
-      clientSecret,
+      data.clientSecret,
       {
         payment_method: {
           card: cardElement,
           billing_details: {
-            name: delivery.fullName,
-            email: getUserEmailFromStorage(),
-            phone: delivery.phone,
+            name: delivery.fullName || "Customer",
+            email: getUserEmailFromStorage() || "customer@example.com",
+            phone: delivery.phone || "",
             address: {
-              line1: delivery.address1,
+              line1: delivery.address1 || "",
               line2: delivery.address2 || "",
-              city: delivery.city,
-              state: delivery.prefecture,
-              postal_code: delivery.postalCode,
+              city: delivery.city || "",
+              state: delivery.prefecture || "",
+              postal_code: delivery.postalCode || "",
               country: "JP",
             },
           },
@@ -136,15 +161,17 @@ async function handlePayment() {
     }
 
     if (paymentIntent.status === "succeeded") {
-      // create order in database
-      await createOrder(paymentIntentId, delivery, items);
+      console.log("Payment succeeded:", paymentIntent.id);
 
-      // clear cart
+      // 7. create order in database
+      await createOrder(paymentIntent.id, delivery, items);
+
+      // 8. clear cart
       localStorage.setItem("cart", JSON.stringify([]));
       updateHeaderCartCount();
 
-      // redirect to success page
-      window.location.href = "confirmed.html";
+      // 9. redirect to success page
+      window.location.href = `confirmed.html?payment_intent=${paymentIntent.id}`;
     } else {
       throw new Error(`Payment status: ${paymentIntent.status}`);
     }
@@ -160,6 +187,7 @@ async function handlePayment() {
 async function createOrder(paymentIntentId, delivery, items) {
   try {
     const token = localStorage.getItem("token");
+    const userEmail = getUserEmailFromStorage();
 
     const response = await fetch(`${API_BASE}/orders`, {
       method: "POST",
@@ -170,28 +198,49 @@ async function createOrder(paymentIntentId, delivery, items) {
       body: JSON.stringify({
         stripePaymentIntentId: paymentIntentId,
         recipientName: delivery.fullName,
-        email: getUserEmailFromStorage(),
+        email: userEmail,
         phone: delivery.phone,
         addressLine: buildAddressLine(delivery),
         postalCode: delivery.postalCode,
         items: items,
+        shippingCents: 318,
       }),
     });
 
     const data = await response.json();
-    console.log("Order created:", data);
+    console.log("Order creation response:", data);
+
+    // store order in localStorage for display
+    if (data.orderId) {
+      const orders = JSON.parse(localStorage.getItem("orders") || "[]");
+      orders.push({
+        orderId: data.orderId,
+        status: "PAID",
+        total: calculateCartTotal() + 318,
+        pointsEarned: Math.floor(calculateCartTotal() / 10),
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem("orders", JSON.stringify(orders));
+    }
   } catch (error) {
     console.error("Failed to create order:", error);
   }
 }
 
-// ============ Helper Functions ============
+// ============ helper Functions ============
 function getCart() {
   try {
     return JSON.parse(localStorage.getItem("cart")) || [];
   } catch {
     return [];
   }
+}
+
+function calculateCartTotal() {
+  const cart = getCart();
+  return cart.reduce((total, item) => {
+    return total + Number(item.price || 0) * Number(item.qty || 1);
+  }, 0);
 }
 
 function updateHeaderCartCount() {
@@ -230,11 +279,7 @@ function buildAddressLine(d) {
 
 function getUserEmailFromStorage() {
   try {
-    const user = JSON.parse(
-      localStorage.getItem("currentUser") ||
-        localStorage.getItem("user") ||
-        "{}"
-    );
+    const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
     return user.email || "";
   } catch {
     return "";
@@ -243,16 +288,27 @@ function getUserEmailFromStorage() {
 
 // ============ initialize ============
 document.addEventListener("DOMContentLoaded", async function () {
+  console.log("Checkout page loaded");
+
+  // update cart display
+  renderTotals();
+  updateHeaderCartCount();
+
+  // check if user is logged in
+  const token = localStorage.getItem("token");
+  if (!token) {
+    window.location.href = "login.html";
+    return;
+  }
+
   // initialize Stripe
   await initializeStripe();
 
-  // update cart count
-  updateHeaderCartCount();
-
   // handle payment button click
-  document
-    .getElementById("sealOrderBtn")
-    .addEventListener("click", handlePayment);
+  const sealBtn = document.getElementById("sealOrderBtn");
+  if (sealBtn) {
+    sealBtn.addEventListener("click", handlePayment);
+  }
 
   // initialize side menu
   const sideMenu = document.getElementById("sideMenu");
@@ -273,3 +329,45 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 });
+
+// render order totals
+function renderTotals() {
+  const cart = getCart();
+
+  const emptyMsg = document.getElementById("emptyMsg");
+  const detailsCard = document.querySelector(".details");
+  const sealBtn = document.getElementById("sealOrderBtn");
+
+  if (!cart.length) {
+    if (detailsCard) detailsCard.classList.add("hidden");
+    if (emptyMsg) emptyMsg.classList.remove("hidden");
+    if (sealBtn) sealBtn.disabled = true;
+    return;
+  }
+
+  if (detailsCard) detailsCard.classList.remove("hidden");
+  if (emptyMsg) emptyMsg.classList.add("hidden");
+  if (sealBtn) sealBtn.disabled = false;
+
+  const itemsTotal = calculateCartTotal();
+  const deliveryFee = 318;
+  const totalYen = itemsTotal + deliveryFee;
+  const points = Math.floor(itemsTotal / 10);
+
+  if (document.getElementById("itemsTotal")) {
+    document.getElementById("itemsTotal").textContent = formatYen(itemsTotal);
+  }
+  if (document.getElementById("deliveryFee")) {
+    document.getElementById("deliveryFee").textContent = formatYen(deliveryFee);
+  }
+  if (document.getElementById("totalYen")) {
+    document.getElementById("totalYen").textContent = formatYen(totalYen);
+  }
+  if (document.getElementById("pointsEarned")) {
+    document.getElementById("pointsEarned").textContent = `+${points}`;
+  }
+}
+
+function formatYen(amount) {
+  return `¥${Number(amount).toLocaleString()}`;
+}
