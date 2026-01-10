@@ -1,15 +1,14 @@
 const Stripe = require("stripe");
 const productModel = require("../models/productModel");
 
-// initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// get publishable key
 async function config(req, res) {
   try {
     res.json({
       success: true,
       publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      currency: "jpy", // Japanese Yen
     });
   } catch (err) {
     console.error("Config error:", err);
@@ -20,11 +19,10 @@ async function config(req, res) {
   }
 }
 
-// create payment intent
 async function createPaymentIntent(req, res) {
   console.log("Creating payment intent...");
   console.log("User:", req.user);
-  console.log("Body:", req.body);
+  console.log("Request body:", req.body);
 
   try {
     const { items, shippingCents = 318 } = req.body || {};
@@ -72,14 +70,18 @@ async function createPaymentIntent(req, res) {
     const total = subtotal + shipping;
 
     console.log("Payment calculation:");
-    console.log("- Subtotal:", subtotal, "cents");
-    console.log("- Shipping:", shipping, "cents");
-    console.log("- Total:", total, "cents");
+    console.log("- Subtotal:", subtotal, "cents (¥", subtotal / 100, ")");
+    console.log("- Shipping:", shipping, "cents (¥", shipping / 100, ")");
+    console.log("- Total:", total, "cents (¥", total / 100, ")");
+    console.log(
+      "- Points earned from this purchase:",
+      Math.floor(subtotal / 1000)
+    );
 
-    // create payment intent
+    // create payment intent with JPY currency
     const paymentIntent = await stripe.paymentIntents.create({
       amount: total,
-      currency: "sgd", // Singapore dollars
+      currency: "jpy", // Japanese Yen
       automatic_payment_methods: {
         enabled: true,
       },
@@ -90,8 +92,9 @@ async function createPaymentIntent(req, res) {
         subtotal: subtotal.toString(),
         shipping: shipping.toString(),
         total: total.toString(),
+        pointsEarned: Math.floor(subtotal / 1000).toString(),
       },
-      description: `Order from ${req.user.email}`,
+      description: `Order from ${req.user.email} - ${items.length} items`,
     });
 
     console.log("Payment Intent created:", paymentIntent.id);
@@ -110,10 +113,11 @@ async function createPaymentIntent(req, res) {
         subtotal,
         shipping,
         total,
+        pointsEarned: Math.floor(subtotal / 1000),
       },
     });
   } catch (err) {
-    console.error("createPaymentIntent error:", err);
+    console.error("❌ createPaymentIntent error:", err);
     res.status(500).json({
       success: false,
       message: "Failed to create payment",
@@ -123,7 +127,6 @@ async function createPaymentIntent(req, res) {
   }
 }
 
-// handle webhook (for future use)
 async function handleWebhook(req, res) {
   const sig = req.headers["stripe-signature"];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -137,16 +140,16 @@ async function handleWebhook(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // handle different events
   switch (event.type) {
     case "payment_intent.succeeded":
       console.log("Payment succeeded:", event.data.object.id);
+      // can update order status here
       break;
     case "payment_intent.payment_failed":
       console.log("Payment failed:", event.data.object.id);
       break;
     default:
-      console.log(`Unhandled event type: ${event.type}`);
+      console.log(`ℹ️ Unhandled event type: ${event.type}`);
   }
 
   res.json({ received: true });
