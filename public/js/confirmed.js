@@ -1,171 +1,74 @@
-document.getElementById("viewOrdersBtn").addEventListener("click", () => {
-  window.location.href = "orders.html";
-});
-
-function formatYen(amount) {
-  return `¥${Number(amount).toLocaleString()}`;
-}
-
-function getCart() {
-  try {
-    return JSON.parse(localStorage.getItem("cart")) || [];
-  } catch {
-    return [];
-  }
-}
-
-function updateHeaderCartCount() {
-  const cart = getCart();
-  const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
-  const el = document.getElementById("cartCount");
-  if (el) el.textContent = totalQty;
-}
-
-function getOrders() {
-  try {
-    return JSON.parse(localStorage.getItem("orders")) || [];
-  } catch {
-    return [];
-  }
-}
-
-function setOrders(orders) {
-  localStorage.setItem("orders", JSON.stringify(orders));
-}
-
-function getUserPoints() {
-  return Number(localStorage.getItem("points") || "0");
-}
-
-function setUserPoints(points) {
-  localStorage.setItem("points", String(Math.max(Number(points) || 0, 0)));
-}
-
-function setCart(cart) {
-  localStorage.setItem("cart", JSON.stringify(cart));
-}
-
-function showOrderOnPage(order) {
+document.addEventListener("DOMContentLoaded", function () {
+  const viewOrdersBtn = document.getElementById("viewOrdersBtn");
   const orderIdEl = document.getElementById("orderId");
   const orderTotalEl = document.getElementById("orderTotal");
   const orderPointsEl = document.getElementById("orderPoints");
 
-  if (orderIdEl) orderIdEl.textContent = order.orderId || "—";
-  if (orderTotalEl) orderTotalEl.textContent = formatYen(order.total || 0);
-  if (orderPointsEl)
-    orderPointsEl.textContent = `+${Number(order.pointsEarned || 0)}`;
-}
+  // get the latest order from localStorage or URL params
+  function displayOrderConfirmation() {
+    // try to get order from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentIntentId = urlParams.get("payment_intent");
+    const paymentIntentClientSecret = urlParams.get(
+      "payment_intent_client_secret"
+    );
 
-function getQueryParam(name) {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(name);
-}
+    // get order details from localStorage
+    const orders = JSON.parse(localStorage.getItem("orders") || "[]");
+    const lastOrder = orders[orders.length - 1];
 
-async function verifyStripeSession(sessionId) {
-  const res = await fetch(
-    `/api/verify-session?session_id=${encodeURIComponent(sessionId)}`
-  );
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Failed to verify payment");
-  return data; // { payment_status: "paid" ... }
-}
+    if (lastOrder) {
+      orderIdEl.textContent = lastOrder.orderId || "—";
+      orderTotalEl.textContent = formatYen(lastOrder.total || 0);
+      orderPointsEl.textContent = `+${lastOrder.pointsEarned || 0}`;
+    } else if (paymentIntentId) {
+      // show payment intent ID if no order in localStorage
+      orderIdEl.textContent = `Payment: ${paymentIntentId.slice(0, 8)}...`;
+      orderTotalEl.textContent = "¥0";
+      orderPointsEl.textContent = "+0";
+    }
 
-async function finalizeStripeOrderIfNeeded() {
-  const sessionId = getQueryParam("session_id");
-  if (!sessionId) return false;
-
-  // verify payment with backend
-  const session = await verifyStripeSession(sessionId);
-
-  if (session.payment_status !== "paid") {
-    alert("Payment not completed. Returning to checkout.");
-    window.location.href = "checkout.html";
-    return true;
+    // update cart count
+    updateCartCount();
   }
 
-  // move pendingOrder -> orders
-  const raw = localStorage.getItem("pendingOrder");
-  if (!raw) {
-    // maybe already finalized
-    return false;
+  function formatYen(amount) {
+    return `¥${Number(amount).toLocaleString()}`;
   }
 
-  let pending;
-  try {
-    pending = JSON.parse(raw);
-  } catch {
-    return false;
+  function updateCartCount() {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
+    const el = document.getElementById("cartCount");
+    if (el) el.textContent = totalQty;
   }
 
-  const orders = getOrders();
-  orders.push(pending);
-  setOrders(orders);
+  // side menu functionality
+  const sideMenu = document.getElementById("sideMenu");
+  const menuBtn = document.getElementById("menuBtn");
+  const closeMenuBtn = document.getElementById("closeMenuBtn");
 
-  // earn points
-  const wallet = getUserPoints();
-  setUserPoints(wallet + Number(pending.pointsEarned || 0));
+  if (menuBtn && sideMenu) {
+    menuBtn.addEventListener("click", () => {
+      sideMenu.classList.remove("translate-x-[-110%]");
+      sideMenu.classList.add("translate-x-0");
+    });
+  }
 
-  // clear cart
-  setCart([]);
-  updateHeaderCartCount();
+  if (closeMenuBtn && sideMenu) {
+    closeMenuBtn.addEventListener("click", () => {
+      sideMenu.classList.add("translate-x-[-110%]");
+      sideMenu.classList.remove("translate-x-0");
+    });
+  }
 
-  // clean up pending order
-  localStorage.removeItem("pendingOrder");
+  // view orders button
+  if (viewOrdersBtn) {
+    viewOrdersBtn.addEventListener("click", () => {
+      window.location.href = "orders.html";
+    });
+  }
 
-  // show it
-  showOrderOnPage(pending);
-  return true;
-}
-
-function showLatestOrderFallback() {
-  const orders = getOrders();
-  if (!orders.length) return;
-  const last = orders[orders.length - 1];
-  showOrderOnPage(last);
-}
-
-// ---------- side menu (safe) ----------
-const sideMenu = document.getElementById("sideMenu");
-const menuBtn = document.getElementById("menuBtn");
-const closeMenuBtn = document.getElementById("closeMenuBtn");
-
-function openMenu() {
-  if (!sideMenu) return;
-  sideMenu.classList.remove("translate-x-[-110%]");
-  sideMenu.classList.add("translate-x-0");
-}
-function closeMenu() {
-  if (!sideMenu) return;
-  sideMenu.classList.add("translate-x-[-110%]");
-  sideMenu.classList.remove("translate-x-0");
-}
-
-if (menuBtn) menuBtn.addEventListener("click", openMenu);
-if (closeMenuBtn) closeMenuBtn.addEventListener("click", closeMenu);
-
-document.addEventListener("click", (e) => {
-  if (!sideMenu) return;
-  if (!sideMenu.classList.contains("translate-x-0")) return;
-
-  const clickedInside = sideMenu.contains(e.target);
-  const clickedMenuBtn = menuBtn && menuBtn.contains(e.target);
-  if (!clickedInside && !clickedMenuBtn) closeMenu();
+  // initialize
+  displayOrderConfirmation();
 });
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeMenu();
-});
-
-// init
-(async function init() {
-  updateHeaderCartCount();
-
-  try {
-    const handled = await finalizeStripeOrderIfNeeded();
-    if (!handled) showLatestOrderFallback();
-  } catch (e) {
-    console.error(e);
-    alert("Could not verify Stripe payment. Returning to checkout.");
-    window.location.href = "checkout.html";
-  }
-})();
