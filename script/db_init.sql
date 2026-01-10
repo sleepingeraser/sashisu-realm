@@ -105,4 +105,5 @@ INSERT INTO Products (Id, Name, ImageUrl, PriceCents, Category, Tags) VALUES
 (29, 'Kento S2 Chara Badge Collection', '/images/kentoS2CharaBadgeCollection.jpg', 2640, 'badge', '["jjk","nanami"]'),
 (30, 'Choso S2 Chara Badge Collection', '/images/chosoS2CharaBadgeCollection.jpg', 2640, 'badge', '["jjk","choso"]');
 
-SELECT * FROM Products ORDER BY Id;
+SELECT * FROM Products ORDER BY Id
+SELECT * FROM Sessions
