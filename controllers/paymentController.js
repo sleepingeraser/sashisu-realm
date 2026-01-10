@@ -54,7 +54,10 @@ async function createPaymentIntent(req, res) {
     });
   } catch (err) {
     console.error("createPaymentIntent error:", err);
-    res.status(500).json({ message: "Create PaymentIntent failed" });
+    res.status(500).json({
+      message: "Create PaymentIntent failed",
+      error: err.message,
+    });
   }
 }
 

@@ -80,7 +80,7 @@ function validateDelivery(d) {
 }
 
 function buildAddressLine(d) {
-  // Backend expects ONE string: addressLine
+  // backend expects ONE string: addressLine
   const parts = [
     d.address1,
     d.address2,
@@ -131,7 +131,7 @@ async function apiPost(path, body, tokenRequired = false) {
   return data;
 }
 
-// ============ Stripe setup (split fields) ============
+// ============ stripe setup (split fields) ============
 let stripe = null;
 let elements = null;
 let cardNumberEl = null;
@@ -258,11 +258,11 @@ async function handleSealOrder() {
       qty: Number(it.qty || 1),
     }));
 
-    // Shipping in cents (you display ¥318; backend expects shippingCents number)
+    // shipping in cents (you display ¥318; backend expects shippingCents number)
     const shippingCents = 318;
 
     if (method === "card") {
-      // PaymentIntent (requires auth on backend)
+      // paymentIntent (requires auth on backend)
       const pi = await apiPost(
         "/api/payments/create-payment-intent",
         { items, shippingCents },
@@ -272,7 +272,7 @@ async function handleSealOrder() {
       const clientSecret = pi.clientSecret;
       if (!clientSecret) throw new Error("Missing clientSecret from server.");
 
-      // Confirm card payment
+      // confirm card payment
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardNumberEl,
@@ -288,8 +288,6 @@ async function handleSealOrder() {
         throw new Error(`Payment status: ${result.paymentIntent.status}`);
       }
 
-      // ✅ BACKEND ORDER EXPECTS THESE DELIVERY FIELDS:
-      // recipientName, email, phone, addressLine, postalCode (NOT a "delivery" object)
       const orderPayload = {
         items,
         shippingCents,

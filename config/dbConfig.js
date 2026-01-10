@@ -6,7 +6,7 @@ const dbConfig = {
   user: process.env.DB_USER || "SashisuRealm_user",
   password: process.env.DB_PASSWORD || "koyuki",
   options: {
-    encrypt: true,
+    encrypt: false,
     trustServerCertificate: true,
   },
   pool: {

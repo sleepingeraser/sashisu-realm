@@ -1,27 +1,34 @@
 const crypto = require("crypto");
 const { getPool, sql } = require("../config/dbConfig");
 
-function createToken() {
-  return crypto.randomBytes(32).toString("hex");
-}
-
 async function createSession(userId) {
-  const token = createToken();
-  const now = new Date();
-  const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
   const pool = await getPool();
   await pool
     .request()
-    .input("Token", sql.NVarChar(128), token)
     .input("UserId", sql.Int, userId)
-    .input("ExpiresAt", sql.DateTime2, expires)
-    .query(
-      `INSERT INTO Sessions (Token, UserId, ExpiresAt)
-       VALUES (@Token, @UserId, @ExpiresAt)`
-    );
+    .input("Token", sql.VarChar(255), token)
+    .input("ExpiresAt", sql.DateTime2, expiresAt).query(`
+      INSERT INTO Sessions (UserId, Token, ExpiresAt)
+      VALUES (@UserId, @Token, @ExpiresAt)
+    `);
 
-  return { token, expiresAt: expires.toISOString() };
+  return { token, expiresAt };
 }
 
-module.exports = { createSession };
+async function findSession(token) {
+  const pool = await getPool();
+  const result = await pool.request().input("Token", sql.VarChar(255), token)
+    .query(`
+      SELECT TOP 1 *
+      FROM Sessions
+      WHERE Token=@Token AND ExpiresAt > GETDATE()
+      ORDER BY ExpiresAt DESC
+    `);
+
+  return result.recordset[0] || null;
+}
+
+module.exports = { createSession, findSession };

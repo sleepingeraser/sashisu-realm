@@ -1,3 +1,4 @@
+const sessionModel = require("../models/sessionModel");
 const { getPool, sql } = require("../config/dbConfig");
 
 async function authMiddleware(req, res, next) {

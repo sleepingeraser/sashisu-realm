@@ -27,23 +27,21 @@ async function signup(req, res) {
 async function login(req, res) {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
+    if (!email || !password)
+      return res.status(400).json({ message: "Missing email/password" });
 
     const user = await userModel.verifyLogin(email, password);
-    if (!user) return res.status(401).json({ message: "Invalid login" });
+    if (!user)
+      return res.status(401).json({ message: "Invalid email/password" });
 
-    const session = await sessionModel.createSession(user.id);
+    const session = await sessionModel.createSession(user.UserId);
 
     res.json({
       token: session.token,
-      expiresAt: session.expiresAt,
-      user,
+      user: { id: user.UserId, email: user.Email, username: user.Username },
     });
-  } catch (err) {
-    console.error("login error:", err);
-    res.status(500).json({ message: "Login failed" });
+  } catch (e) {
+    res.status(500).json({ message: "Login failed", error: e.message });
   }
 }
 
