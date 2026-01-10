@@ -1,17 +1,42 @@
-// ============ Configuration ============
+// ============ configuration ============
 const API_BASE = "http://localhost:3000/api";
 
-// ============ Global Variables ============
+// ============ global variables ============
 let stripe;
 let elements;
 let cardElement;
 
-// ============ Initialize Stripe ============
+// ============ token management ============
+function getAuthToken() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.error("No token found in localStorage");
+    return null;
+  }
+
+  console.log("Token found:", token.substring(0, 20) + "...");
+  return token;
+}
+
+function checkAuth() {
+  const token = getAuthToken();
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+    return false;
+  }
+  return true;
+}
+
+// ============ initialize stripe ============
 async function initializeStripe() {
   try {
     console.log("Initializing Stripe...");
 
-    // et publishable key from backend
+    // check auth first
+    if (!checkAuth()) return;
+
+    // get publishable key from backend
     const response = await fetch(`${API_BASE}/payments/config`);
     const data = await response.json();
 
@@ -19,7 +44,7 @@ async function initializeStripe() {
       throw new Error(data.message || "Failed to get Stripe config");
     }
 
-    console.log("Got publishable key:", data.publishableKey ? "Yes" : "No");
+    console.log("Got publishable key");
 
     // initialize Stripe
     stripe = Stripe(data.publishableKey);
@@ -70,6 +95,37 @@ async function initializeStripe() {
   }
 }
 
+// ============ test token function ============
+async function testToken() {
+  try {
+    const token = getAuthToken();
+    if (!token) return false;
+
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+    console.log("Token test response:", data);
+
+    if (data.success) {
+      console.log("Token is valid for user:", data.user.email);
+      return true;
+    } else {
+      console.log("Token invalid:", data.message);
+      // clear invalid token
+      localStorage.removeItem("token");
+      localStorage.removeItem("currentUser");
+      return false;
+    }
+  } catch (error) {
+    console.error("Token test failed:", error);
+    return false;
+  }
+}
+
 // ============ payment processing ============
 async function handlePayment() {
   const cardError = document.getElementById("card-errors");
@@ -80,6 +136,12 @@ async function handlePayment() {
     sealBtn.disabled = true;
     sealBtn.textContent = "Processing...";
     cardError.textContent = "";
+
+    // test token before proceeding
+    const tokenValid = await testToken();
+    if (!tokenValid) {
+      throw new Error("Your session has expired. Please login again.");
+    }
 
     // 1. validate cart
     const cart = getCart();
@@ -95,7 +157,7 @@ async function handlePayment() {
     }
 
     // 3. get auth token
-    const token = localStorage.getItem("token");
+    const token = getAuthToken();
     if (!token) {
       window.location.href = "login.html";
       return;
@@ -108,6 +170,7 @@ async function handlePayment() {
     }));
 
     console.log("Sending payment request with items:", items);
+    console.log("Using token:", token.substring(0, 20) + "...");
 
     // 5. create payment intent on backend
     const response = await fetch(`${API_BASE}/payments/create-payment-intent`, {
@@ -122,7 +185,20 @@ async function handlePayment() {
       }),
     });
 
-    const data = await response.json();
+    // log response status
+    console.log("Response status:", response.status);
+
+    const responseText = await response.text();
+    console.log("Raw response:", responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("Failed to parse JSON:", parseError);
+      throw new Error("Invalid response from server");
+    }
+
     console.log("Payment intent response:", data);
 
     if (!data.success) {
@@ -153,25 +229,29 @@ async function handlePayment() {
             },
           },
         },
+        return_url: window.location.origin + "/confirmed.html",
       }
     );
 
     if (error) {
+      console.error("Stripe error:", error);
       throw new Error(error.message);
     }
+
+    console.log("Payment intent result:", paymentIntent);
 
     if (paymentIntent.status === "succeeded") {
       console.log("Payment succeeded:", paymentIntent.id);
 
       // 7. create order in database
-      await createOrder(paymentIntent.id, delivery, items);
+      await createOrder(paymentIntent.id, delivery, items, token);
 
       // 8. clear cart
       localStorage.setItem("cart", JSON.stringify([]));
       updateHeaderCartCount();
 
       // 9. redirect to success page
-      window.location.href = `confirmed.html?payment_intent=${paymentIntent.id}`;
+      window.location.href = `confirmed.html?payment_intent=${paymentIntent.id}&success=true`;
     } else {
       throw new Error(`Payment status: ${paymentIntent.status}`);
     }
@@ -183,11 +263,23 @@ async function handlePayment() {
   }
 }
 
-// ============ create order in database ============
-async function createOrder(paymentIntentId, delivery, items) {
+// ============ create rrder in database ============
+async function createOrder(paymentIntentId, delivery, items, token) {
   try {
-    const token = localStorage.getItem("token");
     const userEmail = getUserEmailFromStorage();
+
+    const orderData = {
+      stripePaymentIntentId: paymentIntentId,
+      recipientName: delivery.fullName,
+      email: userEmail,
+      phone: delivery.phone,
+      addressLine: buildAddressLine(delivery),
+      postalCode: delivery.postalCode,
+      items: items,
+      shippingCents: 318,
+    };
+
+    console.log("Creating order with data:", orderData);
 
     const response = await fetch(`${API_BASE}/orders`, {
       method: "POST",
@@ -195,16 +287,7 @@ async function createOrder(paymentIntentId, delivery, items) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        stripePaymentIntentId: paymentIntentId,
-        recipientName: delivery.fullName,
-        email: userEmail,
-        phone: delivery.phone,
-        addressLine: buildAddressLine(delivery),
-        postalCode: delivery.postalCode,
-        items: items,
-        shippingCents: 318,
-      }),
+      body: JSON.stringify(orderData),
     });
 
     const data = await response.json();
@@ -227,7 +310,7 @@ async function createOrder(paymentIntentId, delivery, items) {
   }
 }
 
-// ============ helper Functions ============
+// ============ helper functions ============
 function getCart() {
   try {
     return JSON.parse(localStorage.getItem("cart")) || [];
@@ -295,8 +378,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   updateHeaderCartCount();
 
   // check if user is logged in
-  const token = localStorage.getItem("token");
-  if (!token) {
+  if (!checkAuth()) return;
+
+  // test token immediately
+  const tokenValid = await testToken();
+  if (!tokenValid) {
+    alert("Your session has expired. Please login again.");
     window.location.href = "login.html";
     return;
   }
