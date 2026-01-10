@@ -47,7 +47,7 @@ button {
 }
 
 /* Specific button styling */
-#sealOrderBtn, 
+#sealOrderBtn,
 #usePointsBtn,
 #menuBtn,
 #closeMenuBtn,
@@ -279,6 +279,27 @@ label {
   align-items: center;
 }
 
+/* form input focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(168, 85, 247, 0.5);
+  outline-offset: 2px;
+}
+
+/* alternative focus style using box-shadow */
+input.focus\:outline-none:focus,
+textarea.focus\:outline-none:focus,
+select.focus\:outline-none:focus {
+  outline: none;
+}
+
+input.focus\:ring-2:focus,
+textarea.focus\:ring-2:focus,
+select.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+}
+
 /* confirmed page */
 .page-min-height {
   min-height: calc(100vh - 40px);
@@ -319,15 +340,6 @@ span {
   margin: 15px;
 }
 
-/* form input focus states */
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  ring: 2px;
-  ring-color: rgba(168, 85, 247, 0.5);
-}
-
 /* mobile responsiveness */
 @media (max-width: 640px) {
   .button-text,
@@ -337,11 +349,11 @@ select:focus {
     padding: 8px 16px;
     font-size: 0.9rem;
   }
-  
+
   .payment-option {
     padding: 12px 16px;
   }
-  
+
   .just-type {
     padding: 10px 12px;
   }
