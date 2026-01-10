@@ -51,8 +51,14 @@ app.use(
       "http://localhost:5500",
       "http://127.0.0.1:5500",
       "http://localhost:3000",
+
+      // ✅ github pages (your site)
       "https://sleepingeraser.github.io",
-      "https://github.com/sleepingeraser/sashisu-realm",
+      "https://sleepingeraser.github.io/sashisu-realm",
+      "https://sleepingeraser.github.io/sashisu-realm/",
+
+      // ✅ render itself
+      "https://sashisu-realm.onrender.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -73,6 +79,4 @@ app.get("/", (req, res) => {
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () =>
-  console.log(`Server running at http://localhost:${port}`)
-);
+app.listen(port, () => console.log(`Server running at http://localhost:${port}`));

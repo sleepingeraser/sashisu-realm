@@ -224,11 +224,16 @@ let cardExpiry = null;
 let cardCvc = null;
 
 async function initStripe() {
+  // 1) ensure backend config reachable + key exists
   const cfg = await apiFetch("/api/payments/config");
-  if (!cfg?.publishableKey) throw new Error("Missing Stripe publishable key");
+  if (!cfg?.publishableKey) throw new Error("Missing Stripe publishable key (check Render env STRIPE_PUBLISHABLE_KEY)");
+
+  // 2) ensure Stripe.js is loaded
+  if (!window.Stripe) {
+    throw new Error("Stripe.js not loaded. Ensure <script src='https://js.stripe.com/v3/'> is included.");
+  }
 
   stripe = Stripe(cfg.publishableKey);
-
   const elements = stripe.elements();
 
   const style = {
@@ -245,7 +250,7 @@ async function initStripe() {
   cardExpiry = elements.create("cardExpiry", { style });
   cardCvc = elements.create("cardCvc", { style });
 
-  // mount to your new IDs
+  // mount to your IDs
   cardNumber.mount("#card-number");
   cardExpiry.mount("#card-expiry");
   cardCvc.mount("#card-cvc");
@@ -258,6 +263,23 @@ async function initStripe() {
   cardNumber.on("change", showStripeError);
   cardExpiry.on("change", showStripeError);
   cardCvc.on("change", showStripeError);
+}
+
+function waitForStripe(maxMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const timer = setInterval(() => {
+      if (window.Stripe) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+      if (Date.now() - start > maxMs) {
+        clearInterval(timer);
+        reject(new Error("Stripe.js not loaded. Check <script src='https://js.stripe.com/v3/'>"));
+      }
+    }, 100);
+  });
 }
 
 // ---------- events ----------
@@ -371,7 +393,6 @@ if (sealBtn) {
 
     // ---- CARD (stripe paymentIntent + backend order) ----
     try {
-      // must be logged in to create PI because endpoint is protected
       const token = localStorage.getItem("token");
       if (!token) {
         showError("Login required before card payment.");
@@ -408,6 +429,10 @@ if (sealBtn) {
         },
       });
 
+      if (result.error) {
+        throw new Error(result.error.message || "Payment failed");
+      }
+
       // 3) store order in DB
       orderPayload.stripePaymentIntentId = result.paymentIntent.id;
 
@@ -416,13 +441,11 @@ if (sealBtn) {
         body: JSON.stringify(orderPayload),
       });
 
-      // clear cart + go confirmed (you can show orderId later)
+      // clear cart + go confirmed
       setCart([]);
       updateHeaderCartCount();
 
-      // store for confirmed page if you want
       localStorage.setItem("lastOrderId", created.orderId);
-
       window.location.href = "confirmed.html";
     } catch (e) {
       console.error(e);
@@ -450,6 +473,15 @@ if (closeMenuBtn && sideMenu) {
 }
 
 // ---------- init ----------
-updateHeaderCartCount();
-renderSummary();
-initStripe().catch((e) => showError(e.message || "Stripe init failed"));
+document.addEventListener("DOMContentLoaded", async () => {
+  updateHeaderCartCount();
+  renderSummary();
+
+  try {
+    await waitForStripe();
+    await initStripe();
+  } catch (e) {
+    console.error("Stripe init failed:", e);
+    showError(e.message || "Stripe init failed");
+  }
+});
