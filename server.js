@@ -1,8 +1,7 @@
-// server.js
 require("dotenv").config();
 
 const express = require("express");
-const cors = require("cors");
+const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -11,28 +10,20 @@ const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
 
-// ---------- middlewares ----------
-app.use(cors());
 app.use(express.json());
 
-// serve frontend files from a folder like "public"
-const path = require("path");
-app.use(express.static(path.join(__dirname, "public")));
+// If your frontend is served from the same server, put HTML/CSS/JS in /public
+// app.use(express.static(path.join(__dirname, "public")));
 
-// ---------- routes ----------
-app.get("/", (req, res) => res.json({ message: "Sashisu Realm API running" }));
+// API routes (match your frontend fetch paths)
+app.use("/api", authRoutes); // /api/signup, /api/login, /api/me
+app.use("/api/products", productRoutes); // GET /api/products
+app.use("/api/orders", orderRoutes); // GET/POST /api/orders (protected)
+app.use("/api/payments", paymentRoutes); // /api/payments/config, /api/payments/create-payment-intent
 
-app.use("/api", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes);
+// health check
+app.get("/health", (req, res) => res.json({ ok: true }));
 
-// ---------- fallback ----------
-app.use((req, res) => {
-  res.status(404).json({ message: "Route not found" });
-});
-
-// ---------- start server ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
