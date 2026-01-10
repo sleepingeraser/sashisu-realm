@@ -140,9 +140,22 @@
                     id="cardWrap"
                     class="cardWrap mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6"
                   >
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-3">
+                      <!-- card element container -->
+                      <div
+                        id="card-element"
+                        class="p-3 rounded-xl bg-black/40 border border-purple-500/25"
+                      ></div>
+
+                      <!-- card errors display -->
+                      <div
+                        id="card-errors"
+                        class="text-red-300 text-sm"
+                        role="alert"
+                      ></div>
+
                       <!-- name on card -->
-                      <div class="sm:col-span-2">
+                      <div>
                         <label
                           class="field-title block text-sm text-white/80 mb-2"
                         >
@@ -155,50 +168,6 @@
                           autocomplete="cc-name"
                           class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
                         />
-                      </div>
-
-                      <!-- card number -->
-                      <div class="sm:col-span-2">
-                        <label
-                          class="field-title block text-sm text-white/80 mb-2"
-                        >
-                          Card Number
-                        </label>
-                        <div
-                          id="card-number"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
-                        ></div>
-                      </div>
-
-                      <!-- MM/YY -->
-                      <div>
-                        <label
-                          class="field-title block text-sm text-white/80 mb-2"
-                        >
-                          MM/YY
-                        </label>
-                        <div
-                          id="card-expiry"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
-                        ></div>
-                      </div>
-
-                      <!-- CVC -->
-                      <div>
-                        <label
-                          class="field-title block text-sm text-white/80 mb-2"
-                        >
-                          CVC
-                        </label>
-                        <div
-                          id="card-cvc"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
-                        ></div>
-                      </div>
-
-                      <!-- error message -->
-                      <div class="sm:col-span-2">
-                        <p id="card-error" class="text-red-300 text-sm"></p>
                       </div>
                     </div>
                   </section>
