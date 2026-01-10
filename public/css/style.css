@@ -37,6 +37,10 @@
   letter-spacing: 2px;
 }
 
+.container {
+  margin-bottom: 25px;
+}
+
 /* index.html */
 span.text-purple-500 {
   text-shadow: 0 0 10px rgba(168, 85, 247, 0.8);
@@ -93,6 +97,7 @@ label {
 .delivery-options /* checkout */ {
   margin: 25px;
 }
+
 /* browse */
 .grid {
   margin: 25px;
@@ -121,72 +126,85 @@ label {
   margin-left: -20px;
 }
 
-/* ===== STRIPE ELEMENTS FIX ===== */
-
-/* Ensure Stripe containers are clickable */
-#card-number,
-#card-expiry,
-#card-cvc {
-  position: relative;
-  z-index: 50;
-  pointer-events: auto;
+/* checkout.html */
+.payment-option {
+  transition: all 0.3s ease;
+  margin: 15px 0;
 }
 
-/* Stripe injects iframes – they must receive pointer events */
-#card-number iframe,
-#card-expiry iframe,
-#card-cvc iframe {
-  pointer-events: auto;
+.payment-option:hover {
+  transform: translateX(5px);
 }
 
-/* Ensure no parent blocks clicks */
-.cardWrap {
-  position: relative;
-  z-index: 40;
-  pointer-events: auto;
+.payment-details {
+  animation: fadeIn 0.5s ease;
 }
 
-/* checkout – payment options spacing */
-.payment-options label,
-.delivery-options label {
-  display: flex;
-  margin-bottom: 16px;
+.card-element {
+  margin: 25px;
 }
 
-/* remove gap after last option */
-.payment-options label:last-of-type {
-  margin-bottom: 0;
-}
-
-.cardWrap {
-  margin-bottom: 25px;
-}
-
-.goback-cartout {
-  margin-bottom: 1rem;
-}
-
-.only {
-  padding-left: 30px;
-  padding-top: 25px;
-}
-
+.field-title,
 .box {
-  margin-top: 25px;
-  padding: 25px;
-}
-
-.name-title {
-  padding-bottom: 0;
-}
-
-.field-title {
-  padding-top: 15px;
-  padding-bottom: 0;
+  margin-top: 15px;
 }
 
 .just-type {
-  padding-left: 10px;
+  padding: 0 15px;
+}
+
+.points {
+  margin: 25px;
+}
+
+.mess {
+  padding-left: 22px;
+}
+
+.insufficient {
+  padding: 15px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.goback {
+  margin: 25px;
+}
+
+/* progress bar */
+#pointsProgressBar {
+  transition: width 1s ease-in-out;
+}
+
+/* payment method highlights */
+.payment-option.bg-purple-900\/50 {
+  background-color: rgba(107, 33, 168, 0.5) !important;
+  border-color: rgba(168, 85, 247, 0.5) !important;
+}
+
+/* points */
+.points-info {
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+}
+
+/* button */
+#usePointsBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#sealOrderBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* confirmed page */

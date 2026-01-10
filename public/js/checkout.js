@@ -1,34 +1,22 @@
 // ============ configuration ============
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = "/api";
 
 // ============ global variables ============
 let stripe;
 let elements;
 let cardElement;
+let currentPaymentMethod = "card"; // 'card' or 'points'
+let userPoints = 0;
+let orderTotalYen = 0;
+let orderTotalPoints = 0;
 
 // ============ token management ============
 function getAuthToken() {
-  // get the REAL token from localStorage
   const token = localStorage.getItem("token");
-
-  // DEBUG: check what token we have
-  console.log("Current token in localStorage:", token);
-  console.log("Token starts with 'aizawa'?", token?.startsWith("aizawa"));
-
-  // ff it's the hardcoded token, clear it
-  if (token === "aizawa-approved-token" || token?.startsWith("aizawa")) {
-    console.warn("Found hardcoded/mock token. Clearing it.");
-    localStorage.removeItem("token");
-    localStorage.removeItem("currentUser");
-    return null;
-  }
-
   if (!token) {
     console.error("No valid token found in localStorage");
     return null;
   }
-
-  console.log("Using valid token:", token.substring(0, 20) + "...");
   return token;
 }
 
@@ -99,11 +87,11 @@ async function initializeStripe() {
   }
 }
 
-// ============ test token function ============
-async function testToken() {
+// ============ fetch user points ============
+async function fetchUserPoints() {
   try {
     const token = getAuthToken();
-    if (!token) return false;
+    if (!token) return 0;
 
     const response = await fetch(`${API_BASE}/auth/me`, {
       headers: {
@@ -112,21 +100,175 @@ async function testToken() {
     });
 
     const data = await response.json();
-    console.log("Token test response:", data);
 
-    if (data.success) {
-      console.log("Token is valid for user:", data.user.email);
-      return true;
-    } else {
-      console.log("Token invalid:", data.message);
-      // clear invalid token
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      return false;
+    if (data.success && data.user) {
+      return data.user.points || 0;
     }
+    return 0;
   } catch (error) {
-    console.error("Token test failed:", error);
-    return false;
+    console.error("Failed to fetch user points:", error);
+    return 0;
+  }
+}
+
+// ============ update points display ============
+function updatePointsDisplay() {
+  const pointsNeeded = Math.floor(orderTotalYen / 10); // 10 yen = 1 point
+
+  // Update displays
+  document.getElementById("userPoints").textContent =
+    userPoints.toLocaleString();
+  document.getElementById("orderPointsNeeded").textContent =
+    pointsNeeded.toLocaleString();
+
+  // Calculate progress
+  const progressPercentage = Math.min((userPoints / pointsNeeded) * 100, 100);
+  const pointsProgressBar = document.getElementById("pointsProgressBar");
+  const pointsProgressText = document.getElementById("pointsProgressText");
+  const pointsStatus = document.getElementById("pointsStatus");
+  const usePointsBtn = document.getElementById("usePointsBtn");
+  const pointsMessage = document.getElementById("pointsMessage");
+
+  // Update progress bar
+  if (pointsProgressBar) {
+    pointsProgressBar.style.width = `${progressPercentage}%`;
+  }
+
+  // Update progress text
+  if (pointsProgressText) {
+    pointsProgressText.textContent = `${Math.min(
+      userPoints,
+      pointsNeeded
+    ).toLocaleString()}/${pointsNeeded.toLocaleString()}`;
+  }
+
+  // Update status and button
+  if (userPoints >= pointsNeeded) {
+    pointsStatus.textContent = "✅ Sufficient Points";
+    pointsStatus.className = "text-lg font-semibold text-green-400";
+
+    if (usePointsBtn) {
+      usePointsBtn.disabled = false;
+      usePointsBtn.innerHTML =
+        '<i class="fa-solid fa-bolt mr-2"></i>Pay with Points';
+    }
+
+    if (pointsMessage) {
+      pointsMessage.innerHTML = `
+        <i class="fa-solid fa-check-circle mr-2 text-green-400"></i>
+        You have enough points to pay for this order!
+        <span class="block text-white/70 text-xs mt-1">
+          Remaining points after payment: <span class="font-semibold">${(
+            userPoints - pointsNeeded
+          ).toLocaleString()}</span>
+        </span>
+      `;
+      pointsMessage.className =
+        "mt-4 text-sm p-3 rounded-lg bg-green-900/20 border border-green-500/30";
+    }
+  } else {
+    pointsStatus.textContent = "❌ Insufficient Points";
+    pointsStatus.className = "text-lg font-semibold text-red-400";
+
+    if (usePointsBtn) {
+      usePointsBtn.disabled = true;
+      usePointsBtn.innerHTML =
+        '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
+    }
+
+    const pointsNeededMore = pointsNeeded - userPoints;
+    if (pointsMessage) {
+      pointsMessage.innerHTML = `
+        <i class="insufficient fa-solid fa-exclamation-triangle mr-2 text-yellow-400"></i>
+        You need <span class="font-semibold text-yellow-300">${pointsNeededMore.toLocaleString()}</span> more points to pay with points.
+        <span class="insufficient block text-white/70 text-xs mt-1">
+          Complete your purchase with credit card to earn more points!
+        </span>
+      `;
+      pointsMessage.className =
+        "mt-4 text-sm p-3 rounded-lg bg-yellow-900/20 border border-yellow-500/30";
+    }
+  }
+}
+
+// ============ payment method toggle ============
+function setupPaymentMethodToggle() {
+  const paymentOptions = document.querySelectorAll(".payment-option");
+  const paymentDetails = document.querySelectorAll(".payment-details");
+  const selectedPaymentMethod = document.getElementById(
+    "selectedPaymentMethod"
+  );
+
+  paymentOptions.forEach((option) => {
+    option.addEventListener("click", function () {
+      const method = this.dataset.option;
+
+      // Update radio button
+      const radio = this.querySelector(".payment-radio");
+      radio.checked = true;
+
+      // Update current payment method
+      currentPaymentMethod = method;
+
+      // Update UI to show selected method
+      paymentOptions.forEach((opt) => {
+        opt.classList.remove("bg-purple-900/50", "border-purple-500/50");
+        opt.classList.add("bg-white/10", "border-white/15");
+      });
+
+      this.classList.remove("bg-white/10", "border-white/15");
+      this.classList.add("bg-purple-900/50", "border-purple-500/50");
+
+      // Show/hide details
+      paymentDetails.forEach((detail) => {
+        detail.classList.add("hidden");
+      });
+
+      if (method === "card") {
+        document.getElementById("cardDetails").classList.remove("hidden");
+        selectedPaymentMethod.textContent = "Credit Card";
+        selectedPaymentMethod.className =
+          "text-sm sm:text-base font-semibold text-purple-300";
+      } else if (method === "points") {
+        document.getElementById("pointsDetails").classList.remove("hidden");
+        selectedPaymentMethod.textContent = "Prison Realm Points";
+        selectedPaymentMethod.className =
+          "text-sm sm:text-base font-semibold text-yellow-300";
+      }
+
+      // Update payment button text
+      updatePaymentButton();
+    });
+  });
+
+  // Initialize with card selected
+  document.querySelector('.payment-option[data-option="card"]').click();
+}
+
+// ============ update payment button ============
+function updatePaymentButton() {
+  const sealBtn = document.getElementById("sealOrderBtn");
+  if (!sealBtn) return;
+
+  if (currentPaymentMethod === "card") {
+    sealBtn.innerHTML =
+      '<i class="fa-solid fa-lock mr-2"></i>Pay with Credit Card';
+    sealBtn.className =
+      "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300";
+  } else if (currentPaymentMethod === "points") {
+    const pointsNeeded = Math.floor(orderTotalYen / 10);
+
+    if (userPoints >= pointsNeeded) {
+      sealBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300";
+    } else {
+      sealBtn.innerHTML =
+        '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
+      sealBtn.disabled = true;
+    }
   }
 }
 
@@ -138,14 +280,10 @@ async function handlePayment() {
   try {
     // disable button and show loading
     sealBtn.disabled = true;
-    sealBtn.textContent = "Processing...";
+    const originalText = sealBtn.innerHTML;
+    sealBtn.innerHTML =
+      '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Processing...';
     cardError.textContent = "";
-
-    // test token before proceeding
-    const tokenValid = await testToken();
-    if (!tokenValid) {
-      throw new Error("Your session has expired. Please login again.");
-    }
 
     // 1. validate cart
     const cart = getCart();
@@ -173,107 +311,156 @@ async function handlePayment() {
       qty: Number(item.qty || 1),
     }));
 
-    console.log("Sending payment request with items:", items);
-    console.log("Using token:", token.substring(0, 20) + "...");
+    console.log("Payment method:", currentPaymentMethod);
 
-    // 5. create payment intent on backend
-    const response = await fetch(`${API_BASE}/payments/create-payment-intent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        items: items,
-        shippingCents: 318,
-      }),
-    });
-
-    // log response status
-    console.log("Response status:", response.status);
-
-    const responseText = await response.text();
-    console.log("Raw response:", responseText);
-
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error("Failed to parse JSON:", parseError);
-      throw new Error("Invalid response from server");
-    }
-
-    console.log("Payment intent response:", data);
-
-    if (!data.success) {
-      throw new Error(data.message || "Payment setup failed");
-    }
-
-    if (!data.clientSecret) {
-      throw new Error("No client secret received from server");
-    }
-
-    // 6. confirm card payment
-    const { paymentIntent, error } = await stripe.confirmCardPayment(
-      data.clientSecret,
-      {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: delivery.fullName || "Customer",
-            email: getUserEmailFromStorage() || "customer@example.com",
-            phone: delivery.phone || "",
-            address: {
-              line1: delivery.address1 || "",
-              line2: delivery.address2 || "",
-              city: delivery.city || "",
-              state: delivery.prefecture || "",
-              postal_code: delivery.postalCode || "",
-              country: "JP",
-            },
-          },
-        },
-        return_url: window.location.origin + "/confirmed.html",
-      }
-    );
-
-    if (error) {
-      console.error("Stripe error:", error);
-      throw new Error(error.message);
-    }
-
-    console.log("Payment intent result:", paymentIntent);
-
-    if (paymentIntent.status === "succeeded") {
-      console.log("Payment succeeded:", paymentIntent.id);
-
-      // 7. create order in database
-      await createOrder(paymentIntent.id, delivery, items, token);
-
-      // 8. clear cart
-      localStorage.setItem("cart", JSON.stringify([]));
-      updateHeaderCartCount();
-
-      // 9. redirect to success page
-      window.location.href = `confirmed.html?payment_intent=${paymentIntent.id}&success=true`;
-    } else {
-      throw new Error(`Payment status: ${paymentIntent.status}`);
+    if (currentPaymentMethod === "card") {
+      // Credit card payment
+      await processCreditCardPayment(token, items, delivery);
+    } else if (currentPaymentMethod === "points") {
+      // Points payment
+      await processPointsPayment(token, items, delivery);
     }
   } catch (error) {
     console.error("Payment failed:", error);
     cardError.textContent = error.message;
     sealBtn.disabled = false;
-    sealBtn.textContent = "Seal Order";
+    sealBtn.innerHTML = originalText;
   }
 }
 
-// ============ create rrder in database ============
-async function createOrder(paymentIntentId, delivery, items, token) {
+// ============ process credit card payment ============
+async function processCreditCardPayment(token, items, delivery) {
+  console.log("Processing credit card payment...");
+
+  // create payment intent on backend
+  const response = await fetch(`${API_BASE}/payments/create-payment-intent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      items: items,
+      shippingCents: 318,
+    }),
+  });
+
+  const responseText = await response.text();
+  console.log("Raw response:", responseText);
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (parseError) {
+    console.error("Failed to parse JSON:", parseError);
+    throw new Error("Invalid response from server");
+  }
+
+  console.log("Payment intent response:", data);
+
+  if (!data.success) {
+    throw new Error(data.message || "Payment setup failed");
+  }
+
+  if (!data.clientSecret) {
+    throw new Error("No client secret received from server");
+  }
+
+  // confirm card payment
+  const { paymentIntent, error } = await stripe.confirmCardPayment(
+    data.clientSecret,
+    {
+      payment_method: {
+        card: cardElement,
+        billing_details: {
+          name: delivery.fullName || "Customer",
+          email: getUserEmailFromStorage() || "customer@example.com",
+          phone: delivery.phone || "",
+          address: {
+            line1: delivery.address1 || "",
+            line2: delivery.address2 || "",
+            city: delivery.city || "",
+            state: delivery.prefecture || "",
+            postal_code: delivery.postalCode || "",
+            country: "JP",
+          },
+        },
+      },
+      return_url: window.location.origin + "/confirmed.html",
+    }
+  );
+
+  if (error) {
+    console.error("Stripe error:", error);
+    throw new Error(error.message);
+  }
+
+  console.log("Payment intent result:", paymentIntent);
+
+  if (paymentIntent.status === "succeeded") {
+    console.log("Payment succeeded:", paymentIntent.id);
+
+    // create order in database
+    await createOrder(paymentIntent.id, delivery, items, token, "stripe_card");
+
+    // clear cart
+    localStorage.setItem("cart", JSON.stringify([]));
+    updateHeaderCartCount();
+
+    // redirect to success page
+    window.location.href = `confirmed.html?payment_intent=${paymentIntent.id}&success=true`;
+  } else {
+    throw new Error(`Payment status: ${paymentIntent.status}`);
+  }
+}
+
+// ============ process points payment ============
+async function processPointsPayment(token, items, delivery) {
+  console.log("Processing points payment...");
+
+  const pointsNeeded = Math.floor(orderTotalYen / 10);
+
+  // Check if user has enough points
+  if (userPoints < pointsNeeded) {
+    throw new Error(
+      `Insufficient points. You need ${pointsNeeded} points but only have ${userPoints}.`
+    );
+  }
+
+  // For points payment, we'll create an order without Stripe
+  // In a real app, you'd have a backend endpoint for points payment
+  try {
+    // Create order with points payment method
+    await createOrder(
+      "points_payment_" + Date.now(),
+      delivery,
+      items,
+      token,
+      "points"
+    );
+
+    // Clear cart
+    localStorage.setItem("cart", JSON.stringify([]));
+    updateHeaderCartCount();
+
+    // Redirect to success page
+    window.location.href = `confirmed.html?payment_method=points&success=true`;
+  } catch (error) {
+    console.error("Points payment failed:", error);
+    throw new Error("Points payment processing failed. Please try again.");
+  }
+}
+
+// ============ create order in database ============
+async function createOrder(paymentId, delivery, items, token, paymentMethod) {
   try {
     const userEmail = getUserEmailFromStorage();
 
     const orderData = {
-      stripePaymentIntentId: paymentIntentId,
+      stripePaymentIntentId: paymentMethod === "stripe_card" ? paymentId : null,
+      paymentMethod: paymentMethod,
+      pointsUsed:
+        paymentMethod === "points" ? Math.floor(orderTotalYen / 10) : 0,
       recipientName: delivery.fullName,
       email: userEmail,
       phone: delivery.phone,
@@ -305,12 +492,16 @@ async function createOrder(paymentIntentId, delivery, items, token) {
         status: "PAID",
         total: calculateCartTotal() + 318,
         pointsEarned: Math.floor(calculateCartTotal() / 10),
+        pointsUsed:
+          paymentMethod === "points" ? Math.floor(orderTotalYen / 10) : 0,
+        paymentMethod: paymentMethod,
         createdAt: new Date().toISOString(),
       });
       localStorage.setItem("orders", JSON.stringify(orders));
     }
   } catch (error) {
     console.error("Failed to create order:", error);
+    throw error;
   }
 }
 
@@ -373,6 +564,62 @@ function getUserEmailFromStorage() {
   }
 }
 
+function checkAuth() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login to checkout");
+    window.location.href = "login.html";
+    return false;
+  }
+  return true;
+}
+
+// ============ render order totals ============
+function renderTotals() {
+  const cart = getCart();
+
+  const emptyMsg = document.getElementById("emptyMsg");
+  const detailsCard = document.querySelector(".details");
+  const sealBtn = document.getElementById("sealOrderBtn");
+
+  if (!cart.length) {
+    if (detailsCard) detailsCard.classList.add("hidden");
+    if (emptyMsg) emptyMsg.classList.remove("hidden");
+    if (sealBtn) sealBtn.disabled = true;
+    return;
+  }
+
+  if (detailsCard) detailsCard.classList.remove("hidden");
+  if (emptyMsg) emptyMsg.classList.add("hidden");
+  if (sealBtn) sealBtn.disabled = false;
+
+  const itemsTotal = calculateCartTotal();
+  const deliveryFee = 318;
+  orderTotalYen = itemsTotal + deliveryFee;
+  const pointsEarned = Math.floor(itemsTotal / 10);
+  orderTotalPoints = Math.floor(orderTotalYen / 10);
+
+  if (document.getElementById("itemsTotal")) {
+    document.getElementById("itemsTotal").textContent = formatYen(itemsTotal);
+  }
+  if (document.getElementById("deliveryFee")) {
+    document.getElementById("deliveryFee").textContent = formatYen(deliveryFee);
+  }
+  if (document.getElementById("totalYen")) {
+    document.getElementById("totalYen").textContent = formatYen(orderTotalYen);
+  }
+  if (document.getElementById("pointsEarned")) {
+    document.getElementById("pointsEarned").textContent = `+${pointsEarned}`;
+  }
+  if (document.getElementById("pointsToEarn")) {
+    document.getElementById("pointsToEarn").textContent = pointsEarned;
+  }
+}
+
+function formatYen(amount) {
+  return `¥${Number(amount).toLocaleString()}`;
+}
+
 // ============ initialize ============
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("Checkout page loaded");
@@ -384,16 +631,22 @@ document.addEventListener("DOMContentLoaded", async function () {
   // check if user is logged in
   if (!checkAuth()) return;
 
-  // test token immediately
-  const tokenValid = await testToken();
-  if (!tokenValid) {
-    alert("Your session has expired. Please login again.");
-    window.location.href = "login.html";
-    return;
-  }
+  try {
+    // fetch user points
+    userPoints = await fetchUserPoints();
+    console.log("User points:", userPoints);
 
-  // initialize Stripe
-  await initializeStripe();
+    // update points display
+    updatePointsDisplay();
+
+    // setup payment method toggle
+    setupPaymentMethodToggle();
+
+    // initialize Stripe
+    await initializeStripe();
+  } catch (error) {
+    console.error("Initialization error:", error);
+  }
 
   // handle payment button click
   const sealBtn = document.getElementById("sealOrderBtn");
@@ -420,45 +673,3 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 });
-
-// render order totals
-function renderTotals() {
-  const cart = getCart();
-
-  const emptyMsg = document.getElementById("emptyMsg");
-  const detailsCard = document.querySelector(".details");
-  const sealBtn = document.getElementById("sealOrderBtn");
-
-  if (!cart.length) {
-    if (detailsCard) detailsCard.classList.add("hidden");
-    if (emptyMsg) emptyMsg.classList.remove("hidden");
-    if (sealBtn) sealBtn.disabled = true;
-    return;
-  }
-
-  if (detailsCard) detailsCard.classList.remove("hidden");
-  if (emptyMsg) emptyMsg.classList.add("hidden");
-  if (sealBtn) sealBtn.disabled = false;
-
-  const itemsTotal = calculateCartTotal();
-  const deliveryFee = 318;
-  const totalYen = itemsTotal + deliveryFee;
-  const points = Math.floor(itemsTotal / 10);
-
-  if (document.getElementById("itemsTotal")) {
-    document.getElementById("itemsTotal").textContent = formatYen(itemsTotal);
-  }
-  if (document.getElementById("deliveryFee")) {
-    document.getElementById("deliveryFee").textContent = formatYen(deliveryFee);
-  }
-  if (document.getElementById("totalYen")) {
-    document.getElementById("totalYen").textContent = formatYen(totalYen);
-  }
-  if (document.getElementById("pointsEarned")) {
-    document.getElementById("pointsEarned").textContent = `+${points}`;
-  }
-}
-
-function formatYen(amount) {
-  return `¥${Number(amount).toLocaleString()}`;
-}

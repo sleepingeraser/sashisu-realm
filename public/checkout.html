@@ -110,37 +110,40 @@
             </h1>
 
             <section
-              class="details relative z-10 rounded-3xl bg-black/45 border border-purple-500/25 backdrop-blur-md shadow-2xl shadow-purple-700/20 overflow-hidden"
+              class="container relative z-10 rounded-3xl bg-black/45 border border-purple-500/25 backdrop-blur-md shadow-2xl shadow-purple-700/20 overflow-hidden"
             >
               <div class="p-5 sm:p-7">
-                <!-- PAYMENT -->
+                <!-- PAYMENT METHOD -->
                 <div
                   class="payment-method text-lg sm:text-xl text-white/90 mt-8"
                 >
-                  Payment Method
+                  Choose Your Payment Method
                 </div>
 
                 <!-- payment options -->
                 <div class="payment-options space-y-4 mt-4">
+                  <!-- credit card option -->
                   <label
-                    class="flex items-center gap-3 rounded-xl px-4 py-3 bg-white/10 border border-white/15 hover:bg-white/15 transition cursor-pointer"
+                    class="flex items-center gap-3 rounded-xl px-4 py-3 bg-white/10 border border-white/15 hover:bg-white/15 transition cursor-pointer payment-option"
+                    data-option="card"
                   >
                     <input
                       type="radio"
                       name="payMethod"
                       value="card"
                       checked
-                      class="h-5 w-5 accent-purple-500"
+                      class="h-5 w-5 accent-purple-500 payment-radio"
                     />
                     <span class="text-lg">Credit / Debit Card</span>
+                    <i class="fa-solid fa-credit-card ml-auto"></i>
                   </label>
 
-                  <!-- stripe card input -->
+                  <!-- credit card details -->
                   <section
-                    id="cardWrap"
-                    class="cardWrap mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6"
+                    id="cardDetails"
+                    class="payment-details mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6 transition-all duration-300"
                   >
-                    <div class="space-y-4">
+                    <div class="card-element space-y-4">
                       <!-- card element container -->
                       <div class="mb-4">
                         <label
@@ -150,10 +153,8 @@
                         </label>
                         <div
                           id="card-element"
-                          class="p-3 rounded-xl bg-black/40 border border-purple-500/25"
-                        >
-                          <!-- stripe will inject the card input here -->
-                        </div>
+                          class="just-type rounded-xl bg-black/40 border border-purple-500/25"
+                        ></div>
                       </div>
 
                       <!-- card errors display -->
@@ -175,34 +176,133 @@
                           type="text"
                           placeholder="e.g. Koyuki Sky"
                           autocomplete="cc-name"
-                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
                     </div>
                   </section>
 
+                  <!-- prison realm points option -->
                   <label
-                    class="flex items-center gap-3 rounded-xl px-4 py-3 bg-white/10 border border-white/15 hover:bg-white/15 transition cursor-pointer"
+                    class="flex items-center gap-3 rounded-xl px-4 py-3 bg-white/10 border border-white/15 hover:bg-white/15 transition cursor-pointer payment-option"
+                    data-option="points"
                   >
                     <input
                       type="radio"
                       name="payMethod"
                       value="points"
-                      class="h-5 w-5 accent-purple-500"
+                      class="h-5 w-5 accent-purple-500 payment-radio"
                     />
                     <span class="text-lg">Prison Realm Points</span>
+                    <i class="fa-solid fa-coins ml-auto text-yellow-400"></i>
                   </label>
 
-                  <p id="pointsHint" class="text-sm text-white/70 pl-1 hidden">
-                    You have
-                    <span id="userPoints" class="font-semibold">0</span> points.
-                    This order needs
-                    <span id="neededPoints" class="font-semibold">0</span>
-                    points.
-                  </p>
+                  <!-- points details -->
+                  <section
+                    id="pointsDetails"
+                    class="payment-details hidden mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6 transition-all duration-300"
+                  >
+                    <div class="points space-y-4">
+                      <!-- points display -->
+                      <div
+                        class="points-info just-type bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/30"
+                      >
+                        <div class="flex justify-between items-center mb-3">
+                          <div class="text-white/80">
+                            <i class="fa-solid fa-wallet mr-2"></i>
+                            Your Balance
+                          </div>
+                          <div
+                            id="userPoints"
+                            class="text-xl font-bold text-purple-300"
+                          >
+                            0
+                          </div>
+                        </div>
+
+                        <div class="flex justify-between items-center mb-3">
+                          <div class="text-white/80">
+                            <i class="fa-solid fa-shopping-cart mr-2"></i>
+                            Order Cost
+                          </div>
+                          <div
+                            id="orderPointsNeeded"
+                            class="text-xl font-bold text-yellow-300"
+                          >
+                            0
+                          </div>
+                        </div>
+
+                        <div class="border-t border-white/20 pt-3 mt-3">
+                          <div class="flex justify-between items-center">
+                            <div class="text-white/80">
+                              <i class="fa-solid fa-scale-balanced mr-2"></i>
+                              Status
+                            </div>
+                            <div
+                              id="pointsStatus"
+                              class="text-lg font-semibold"
+                            >
+                              Loading...
+                            </div>
+                          </div>
+
+                          <!-- Progress Bar -->
+                          <div class="mt-4">
+                            <div class="flex justify-between text-sm mb-1">
+                              <span class="mess text-white/70"
+                                >Points Progress</span
+                              >
+                              <span
+                                id="pointsProgressText"
+                                class="text-white/70"
+                                >0/0</span
+                              >
+                            </div>
+                            <div
+                              class="w-full bg-black/40 h-3 rounded-full overflow-hidden"
+                            >
+                              <div
+                                id="pointsProgressBar"
+                                class="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
+                                style="width: 0%"
+                              ></div>
+                            </div>
+                          </div>
+
+                          <!-- warning/message -->
+                          <div
+                            id="pointsMessage"
+                            class="pointsMess mt-4 text-sm p-3 rounded-lg bg-black/30 border border-purple-500/20"
+                          >
+                            Select "Prison Realm Points" to pay with your
+                            accumulated points.
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- points action -->
+                      <div class="text-center mt-6">
+                        <button
+                          id="usePointsBtn"
+                          type="button"
+                          class="button-text px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled
+                        >
+                          <i class="fa-solid fa-bolt mr-2"></i>
+                          Pay with Points
+                        </button>
+                        <p class="text-xs text-white/60 mt-2">
+                          You will earn
+                          <span id="pointsToEarn" class="font-semibold">0</span>
+                          points from this purchase
+                        </p>
+                      </div>
+                    </div>
+                  </section>
                 </div>
 
-                <!-- DELIVERY -->
+                <!-- DELIVERY DETAILS -->
                 <div
                   class="delivery-method text-lg sm:text-xl text-white/90 mt-8"
                 >
@@ -320,7 +420,7 @@
                   </section>
                 </div>
 
-                <!-- summary -->
+                <!-- ORDER SUMMARY -->
                 <div class="summary mt-8 space-y-3">
                   <div class="flex items-center justify-between text-white/80">
                     <div class="text-sm sm:text-base">Items Total</div>
@@ -361,15 +461,32 @@
                       +0
                     </div>
                   </div>
+
+                  <!-- payment method display -->
+                  <div
+                    class="flex items-center justify-between text-white/80 pt-3 border-t border-white/10"
+                  >
+                    <div class="text-sm sm:text-base">
+                      <i class="fa-solid fa-money-bill-wave mr-2"></i>
+                      Payment Method
+                    </div>
+                    <div
+                      id="selectedPaymentMethod"
+                      class="text-sm sm:text-base font-semibold text-purple-300"
+                    >
+                      Credit Card
+                    </div>
+                  </div>
                 </div>
 
-                <!-- action -->
+                <!-- ACTION BUTTON -->
                 <div class="mt-8 flex justify-center">
                   <button
                     id="sealOrderBtn"
                     type="button"
-                    class="button-text w-full sm:w-[70%] py-3 rounded-2xl bg-purple-700/60 hover:bg-purple-700/80 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300"
+                    class="button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300"
                   >
+                    <i class="fa-solid fa-lock mr-2"></i>
                     Seal Order
                   </button>
                 </div>
@@ -379,11 +496,12 @@
                   class="hidden mt-4 text-center text-sm text-red-300"
                 ></p>
 
-                <div class="mt-6 flex justify-center">
+                <div class="goback mt-6 flex justify-center">
                   <a
                     href="cart.html"
-                    class="goback-cartout text-sm text-purple-300 underline hover:text-purple-200"
+                    class="text-sm text-purple-300 underline hover:text-purple-200"
                   >
+                    <i class="fa-solid fa-arrow-left mr-2"></i>
                     Go back to cart out
                   </a>
                 </div>
