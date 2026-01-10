@@ -32,39 +32,13 @@
   letter-spacing: 3px;
 }
 
-/* Button styles */
-button {
-  cursor: pointer;
-  border: none;
-  outline: none;
-}
-
 .button-text {
-  margin: 30px;
-  padding: 10px 20px;
   font-family: "Bebas Neue", sans-serif;
   letter-spacing: 2px;
 }
 
-/* Specific button styling */
-#sealOrderBtn,
-#usePointsBtn,
-#menuBtn,
-#closeMenuBtn,
-.qtyMinus,
-.qtyPlus,
-.dropBtn,
-#moreBtn,
-#proceedBtn,
-#loginBtn,
-#signupBtn,
-#enterRealmBtn,
-#viewOrdersBtn,
-#backBtn,
-#logoutBtn,
-#leaveBtn {
-  margin: 30px;
-  padding: 10px 20px;
+.container {
+  margin: 25px  ;
 }
 
 /* index.html */
@@ -74,6 +48,11 @@ span.text-purple-500 {
 
 p {
   margin: 10px;
+}
+
+button {
+  margin: 30px;
+  padding: 10px 20px;
 }
 
 /* login & sign up page */
@@ -147,39 +126,7 @@ label {
   margin-left: -20px;
 }
 
-/* ===== STRIPE ELEMENTS FIX ===== */
-
-/* Ensure Stripe containers are clickable */
-#card-element,
-.stripe-card-element {
-  position: relative;
-  z-index: 50;
-  pointer-events: auto;
-  margin: 0 !important;
-  padding: 12px !important;
-}
-
-/* Stripe injects iframes – they must receive pointer events */
-#card-element iframe,
-.stripe-card-element iframe {
-  pointer-events: auto;
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 40px;
-}
-
-/* Ensure no parent blocks clicks */
-.cardWrap {
-  position: relative;
-  z-index: 40;
-  pointer-events: auto;
-}
-
 /* checkout.html */
-.container {
-  margin-bottom: 25px;
-}
-
 .payment-option {
   transition: all 0.3s ease;
   margin: 15px 0;
@@ -203,8 +150,7 @@ label {
 }
 
 .just-type {
-  padding: 12px 16px;
-  margin: 0;
+  padding: 0 15px;
 }
 
 .points {
@@ -250,54 +196,15 @@ label {
   box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
 }
 
-/* button states */
-#usePointsBtn:disabled,
+/* button */
+#usePointsBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 #sealOrderBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-}
-
-#usePointsBtn:enabled:hover,
-#sealOrderBtn:enabled:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
-}
-
-#usePointsBtn:enabled:hover {
-  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3);
-}
-
-/* stripe card element styling */
-.stripe-card-element {
-  padding: 12px;
-  border-radius: 0.75rem;
-  background-color: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-}
-
-/* form input focus states */
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid rgba(168, 85, 247, 0.5);
-  outline-offset: 2px;
-}
-
-/* alternative focus style using box-shadow */
-input.focus\:outline-none:focus,
-textarea.focus\:outline-none:focus,
-select.focus\:outline-none:focus {
-  outline: none;
-}
-
-input.focus\:ring-2:focus,
-textarea.focus\:ring-2:focus,
-select.focus\:ring-2:focus {
-  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
 }
 
 /* confirmed page */
@@ -338,23 +245,4 @@ span {
 
 .click {
   margin: 15px;
-}
-
-/* mobile responsiveness */
-@media (max-width: 640px) {
-  .button-text,
-  #sealOrderBtn,
-  #usePointsBtn {
-    margin: 15px;
-    padding: 8px 16px;
-    font-size: 0.9rem;
-  }
-
-  .payment-option {
-    padding: 12px 16px;
-  }
-
-  .just-type {
-    padding: 10px 12px;
-  }
 }
