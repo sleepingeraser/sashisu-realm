@@ -8,24 +8,28 @@ let cardElement;
 
 // ============ token management ============
 function getAuthToken() {
+  // get the REAL token from localStorage
   const token = localStorage.getItem("token");
-  if (!token) {
-    console.error("No token found in localStorage");
+
+  // DEBUG: check what token we have
+  console.log("Current token in localStorage:", token);
+  console.log("Token starts with 'aizawa'?", token?.startsWith("aizawa"));
+
+  // ff it's the hardcoded token, clear it
+  if (token === "aizawa-approved-token" || token?.startsWith("aizawa")) {
+    console.warn("Found hardcoded/mock token. Clearing it.");
+    localStorage.removeItem("token");
+    localStorage.removeItem("currentUser");
     return null;
   }
 
-  console.log("Token found:", token.substring(0, 20) + "...");
-  return token;
-}
-
-function checkAuth() {
-  const token = getAuthToken();
   if (!token) {
-    alert("Please login first");
-    window.location.href = "login.html";
-    return false;
+    console.error("No valid token found in localStorage");
+    return null;
   }
-  return true;
+
+  console.log("Using valid token:", token.substring(0, 20) + "...");
+  return token;
 }
 
 // ============ initialize stripe ============
