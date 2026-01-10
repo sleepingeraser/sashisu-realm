@@ -77,6 +77,8 @@ async function initializeStripe() {
       } else {
         displayError.textContent = "";
       }
+      // Update button state when card details change
+      updatePaymentButtonState();
     });
 
     console.log("Stripe initialized successfully");
@@ -126,7 +128,6 @@ function updatePointsDisplay() {
   const pointsProgressBar = document.getElementById("pointsProgressBar");
   const pointsProgressText = document.getElementById("pointsProgressText");
   const pointsStatus = document.getElementById("pointsStatus");
-  const usePointsBtn = document.getElementById("usePointsBtn");
   const pointsMessage = document.getElementById("pointsMessage");
 
   // Update progress bar
@@ -142,16 +143,10 @@ function updatePointsDisplay() {
     ).toLocaleString()}/${pointsNeeded.toLocaleString()}`;
   }
 
-  // Update status and button
+  // Update status
   if (userPoints >= pointsNeeded) {
     pointsStatus.textContent = "✅ Sufficient Points";
     pointsStatus.className = "text-lg font-semibold text-green-400";
-
-    if (usePointsBtn) {
-      usePointsBtn.disabled = false;
-      usePointsBtn.innerHTML =
-        '<i class="fa-solid fa-bolt mr-2"></i>Pay with Points';
-    }
 
     if (pointsMessage) {
       pointsMessage.innerHTML = `
@@ -170,12 +165,6 @@ function updatePointsDisplay() {
     pointsStatus.textContent = "❌ Insufficient Points";
     pointsStatus.className = "text-lg font-semibold text-red-400";
 
-    if (usePointsBtn) {
-      usePointsBtn.disabled = true;
-      usePointsBtn.innerHTML =
-        '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
-    }
-
     const pointsNeededMore = pointsNeeded - userPoints;
     if (pointsMessage) {
       pointsMessage.innerHTML = `
@@ -189,6 +178,138 @@ function updatePointsDisplay() {
         "mt-4 text-sm p-3 rounded-lg bg-yellow-900/20 border border-yellow-500/30";
     }
   }
+
+  // Update button state after points display update
+  updatePaymentButtonState();
+}
+
+// ============ form validation ============
+function validateForms() {
+  const delivery = getDeliveryData();
+  const deliveryErr = validateDelivery(delivery);
+
+  if (deliveryErr) {
+    return { valid: false, error: deliveryErr };
+  }
+
+  // For credit card payment, also validate card details
+  if (currentPaymentMethod === "card") {
+    const cardName = document.getElementById("cardName")?.value.trim();
+    if (!cardName) {
+      return { valid: false, error: "Name on card is required" };
+    }
+
+    // Check if Stripe card element is complete
+    const cardErrors = document.getElementById("card-errors");
+    if (cardErrors && cardErrors.textContent) {
+      return { valid: false, error: "Please fix card errors" };
+    }
+  }
+
+  return { valid: true, error: null };
+}
+
+// ============ update payment button state ============
+function updatePaymentButtonState() {
+  const sealBtn = document.getElementById("sealOrderBtn");
+  const usePointsBtn = document.getElementById("usePointsBtn");
+
+  if (!sealBtn) return;
+
+  const validation = validateForms();
+  const pointsNeeded = Math.floor(orderTotalYen / 10);
+  const hasEnoughPoints = userPoints >= pointsNeeded;
+
+  if (currentPaymentMethod === "card") {
+    // For credit card - enable if forms are valid
+    const isEnabled = validation.valid;
+
+    sealBtn.disabled = !isEnabled;
+    sealBtn.classList.toggle("opacity-50", !isEnabled);
+    sealBtn.classList.toggle("cursor-not-allowed", !isEnabled);
+
+    if (isEnabled) {
+      sealBtn.innerHTML =
+        '<i class="fa-solid fa-lock mr-2"></i>Pay with Credit Card';
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300";
+    } else {
+      sealBtn.innerHTML =
+        '<i class="fa-solid fa-exclamation-circle mr-2"></i>Fill Required Fields';
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
+    }
+  } else if (currentPaymentMethod === "points") {
+    // For points - enable only if enough points AND forms are valid
+    const isFormValid = validation.valid;
+    const isEnabled = hasEnoughPoints && isFormValid;
+
+    sealBtn.disabled = !isEnabled;
+    sealBtn.classList.toggle("opacity-50", !isEnabled);
+    sealBtn.classList.toggle("cursor-not-allowed", !isEnabled);
+
+    if (isEnabled) {
+      sealBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300";
+    } else {
+      if (!hasEnoughPoints) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
+      } else if (!isFormValid) {
+        sealBtn.innerHTML =
+          '<i class="fa-solid fa-exclamation-circle mr-2"></i>Fill Required Fields';
+      }
+      sealBtn.className =
+        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
+    }
+
+    // Update the "Pay with Points" button inside points section
+    if (usePointsBtn) {
+      usePointsBtn.disabled = !isEnabled;
+      usePointsBtn.classList.toggle("opacity-50", !isEnabled);
+      usePointsBtn.classList.toggle("cursor-not-allowed", !isEnabled);
+
+      if (isEnabled) {
+        usePointsBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
+        usePointsBtn.className =
+          "button-text px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300";
+      } else {
+        if (!hasEnoughPoints) {
+          usePointsBtn.innerHTML =
+            '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
+        } else if (!isFormValid) {
+          usePointsBtn.innerHTML =
+            '<i class="fa-solid fa-exclamation-circle mr-2"></i>Fill Required Fields';
+        }
+        usePointsBtn.className =
+          "button-text px-6 py-3 rounded-xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
+      }
+    }
+  }
+}
+
+// ============ setup form validation listeners ============
+function setupFormValidation() {
+  const formInputs = [
+    "fullName",
+    "phone",
+    "postalCode",
+    "address1",
+    "city",
+    "prefecture",
+    "cardName",
+    "address2",
+  ];
+
+  formInputs.forEach((inputId) => {
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.addEventListener("input", updatePaymentButtonState);
+      input.addEventListener("blur", updatePaymentButtonState);
+      input.addEventListener("change", updatePaymentButtonState);
+    }
+  });
 }
 
 // ============ payment method toggle ============
@@ -236,40 +357,13 @@ function setupPaymentMethodToggle() {
           "text-sm sm:text-base font-semibold text-yellow-300";
       }
 
-      // Update payment button text
-      updatePaymentButton();
+      // Update payment button state
+      updatePaymentButtonState();
     });
   });
 
   // Initialize with card selected
   document.querySelector('.payment-option[data-option="card"]').click();
-}
-
-// ============ update payment button ============
-function updatePaymentButton() {
-  const sealBtn = document.getElementById("sealOrderBtn");
-  if (!sealBtn) return;
-
-  if (currentPaymentMethod === "card") {
-    sealBtn.innerHTML =
-      '<i class="fa-solid fa-lock mr-2"></i>Pay with Credit Card';
-    sealBtn.className =
-      "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 border border-purple-500/30 shadow-xl shadow-purple-600/20 transition-all duration-300";
-  } else if (currentPaymentMethod === "points") {
-    const pointsNeeded = Math.floor(orderTotalYen / 10);
-
-    if (userPoints >= pointsNeeded) {
-      sealBtn.innerHTML = `<i class="fa-solid fa-bolt mr-2"></i>Pay with ${pointsNeeded.toLocaleString()} Points`;
-      sealBtn.className =
-        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border border-yellow-500/30 shadow-xl shadow-yellow-600/20 transition-all duration-300";
-    } else {
-      sealBtn.innerHTML =
-        '<i class="fa-solid fa-ban mr-2"></i>Insufficient Points';
-      sealBtn.className =
-        "button-text w-full sm:w-[70%] py-3 rounded-2xl bg-gray-600 hover:bg-gray-700 border border-gray-500/30 shadow-xl shadow-gray-600/20 transition-all duration-300 cursor-not-allowed";
-      sealBtn.disabled = true;
-    }
-  }
 }
 
 // ============ payment processing ============
@@ -325,6 +419,7 @@ async function handlePayment() {
     cardError.textContent = error.message;
     sealBtn.disabled = false;
     sealBtn.innerHTML = originalText;
+    updatePaymentButtonState();
   }
 }
 
@@ -427,8 +522,6 @@ async function processPointsPayment(token, items, delivery) {
     );
   }
 
-  // For points payment, we'll create an order without Stripe
-  // In a real app, you'd have a backend endpoint for points payment
   try {
     // Create order with points payment method
     await createOrder(
@@ -579,7 +672,7 @@ function renderTotals() {
   const cart = getCart();
 
   const emptyMsg = document.getElementById("emptyMsg");
-  const detailsCard = document.querySelector(".details");
+  const detailsCard = document.querySelector(".container");
   const sealBtn = document.getElementById("sealOrderBtn");
 
   if (!cart.length) {
@@ -591,7 +684,6 @@ function renderTotals() {
 
   if (detailsCard) detailsCard.classList.remove("hidden");
   if (emptyMsg) emptyMsg.classList.add("hidden");
-  if (sealBtn) sealBtn.disabled = false;
 
   const itemsTotal = calculateCartTotal();
   const deliveryFee = 318;
@@ -642,8 +734,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     // setup payment method toggle
     setupPaymentMethodToggle();
 
+    // setup form validation
+    setupFormValidation();
+
     // initialize Stripe
     await initializeStripe();
+
+    // Initial button state update
+    updatePaymentButtonState();
   } catch (error) {
     console.error("Initialization error:", error);
   }
@@ -652,6 +750,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const sealBtn = document.getElementById("sealOrderBtn");
   if (sealBtn) {
     sealBtn.addEventListener("click", handlePayment);
+  }
+
+  // handle use points button click
+  const usePointsBtn = document.getElementById("usePointsBtn");
+  if (usePointsBtn) {
+    usePointsBtn.addEventListener("click", handlePayment);
   }
 
   // initialize side menu
