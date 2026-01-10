@@ -10,24 +10,32 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
     return;
   }
 
+  const signupBtn = document.getElementById("signupBtn");
+  signupBtn.disabled = true;
+  signupBtn.textContent = "Creating...";
+
   try {
-    const res = await fetch("/api/signup", {
+    const res = await fetch("http://localhost:3000/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ codename, email, password }),
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
 
-    if (!res.ok) {
+    if (!data.success) {
       alert(data.message || "Signup failed");
+      signupBtn.disabled = false;
+      signupBtn.textContent = "CREATE RECORD";
       return;
     }
 
     alert("Signup successful! Please login.");
     window.location.href = "login.html";
   } catch (err) {
-    alert("Server error. Please try again.");
     console.error(err);
+    alert("Server error. Please try again.");
+    signupBtn.disabled = false;
+    signupBtn.textContent = "CREATE RECORD";
   }
 });
