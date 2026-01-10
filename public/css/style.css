@@ -50,9 +50,52 @@ p {
   margin: 10px;
 }
 
+/* global button reset */
 button {
+  cursor: pointer;
+}
+
+/* specific button types */
+.button-text {
   margin: 30px;
   padding: 10px 20px;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 2px;
+}
+
+#sealOrderBtn,
+#usePointsBtn,
+.qtyMinus,
+.qtyPlus,
+.dropBtn,
+#moreBtn,
+#proceedBtn,
+#loginBtn,
+#signupBtn,
+#enterRealmBtn,
+#viewOrdersBtn,
+#backBtn,
+#logoutBtn,
+#leaveBtn {
+  margin: 30px;
+  padding: 10px 20px;
+}
+
+/* specific buttons in checkout */
+#usePointsBtn {
+  padding: 12px 24px !important;
+}
+
+/* stripe card element styling */
+#card-element iframe {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* stripe container doesn't get messed up */
+.just-type#card-element {
+  margin: 0;
+  padding: 0;
 }
 
 /* login & sign up page */
