@@ -1,17 +1,17 @@
-// ============ configuration ============
+// ============ Configuration ============
 const API_BASE = "http://localhost:3000/api";
 
-// ============ global variables ============
+// ============ Global Variables ============
 let stripe;
 let elements;
 let cardElement;
 
-// ============ initialize stripe ============
+// ============ Initialize Stripe ============
 async function initializeStripe() {
   try {
     console.log("Initializing Stripe...");
 
-    // get publishable key from backend
+    // et publishable key from backend
     const response = await fetch(`${API_BASE}/payments/config`);
     const data = await response.json();
 
