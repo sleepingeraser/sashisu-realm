@@ -1,42 +1,33 @@
-document.getElementById("signupForm").addEventListener("submit", (e) => {
+document.getElementById("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const codename = document.getElementById("codename").value.trim();
   const email = document.getElementById("email").value.trim().toLowerCase();
   const password = document.getElementById("password").value.trim();
 
-  // basic validation
   if (!codename || !email || !password) {
-    alert("Aizawa needs a complete record.");
+    alert("Please fill in all fields.");
     return;
   }
 
-  // load users array
-  let users = [];
   try {
-    users = JSON.parse(localStorage.getItem("users")) || [];
-  } catch {
-    users = [];
-  }
+    const res = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ codename, email, password }),
+    });
 
-  // check if email already exists
-  const exists = users.some((u) => (u.email || "").toLowerCase() === email);
+    const data = await res.json().catch(() => ({}));
 
-  if (exists) {
-    alert("A record already exists for this email.\nLog in instead.");
+    if (!res.ok) {
+      alert(data.message || "Signup failed");
+      return;
+    }
+
+    alert("Signup successful! Please login.");
     window.location.href = "login.html";
-    return;
+  } catch (err) {
+    alert("Server error. Please try again.");
+    console.error(err);
   }
-
-  // add new user
-  users.push({ codename, email, password });
-  localStorage.setItem("users", JSON.stringify(users));
-
-  // IMPORTANT: do NOT auto-login
-  localStorage.removeItem("token");
-  localStorage.removeItem("currentUser");
-
-  // success popup then go login
-  alert("Record created successfully.\nNow log in quietly.");
-  window.location.href = "login.html";
 });

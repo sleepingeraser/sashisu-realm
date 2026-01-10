@@ -1,43 +1,8 @@
-const API_BASE =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
-    ? "http://localhost:3000"
-    : "https://sashisu-realm.onrender.com";
+// ============ helpers ============
+function getToken() {
+  return localStorage.getItem("token");
+}
 
-const itemsTotalEl = document.getElementById("itemsTotal");
-const deliveryFeeEl = document.getElementById("deliveryFee");
-const totalYenEl = document.getElementById("totalYen");
-const pointsEarnedEl = document.getElementById("pointsEarned");
-
-const sealBtn = document.getElementById("sealOrderBtn");
-const errorMsg = document.getElementById("errorMsg");
-const emptyMsg = document.getElementById("emptyMsg");
-
-const pointsHint = document.getElementById("pointsHint");
-const userPointsEl = document.getElementById("userPoints");
-const neededPointsEl = document.getElementById("neededPoints");
-
-// ---------- constants ----------
-const DELIVERY_FEE = 318;
-
-const payRadios = Array.from(
-  document.querySelectorAll('input[name="payMethod"]')
-);
-
-// delivery inputs
-const fullNameEl = document.getElementById("fullName");
-const phoneEl = document.getElementById("phone");
-const postalCodeEl = document.getElementById("postalCode");
-const address1El = document.getElementById("address1");
-const address2El = document.getElementById("address2");
-const cityEl = document.getElementById("city");
-const prefectureEl = document.getElementById("prefecture");
-
-// stripe UI
-const cardWrap = document.getElementById("cardWrap");
-const cardErrorEl = document.getElementById("card-error");
-
-// ---------- helpers ----------
 function getCart() {
   try {
     return JSON.parse(localStorage.getItem("cart")) || [];
@@ -45,33 +10,13 @@ function getCart() {
     return [];
   }
 }
-function setCart(cart) {
-  localStorage.setItem("cart", JSON.stringify(cart));
-}
-
-function getOrders() {
-  try {
-    return JSON.parse(localStorage.getItem("orders")) || [];
-  } catch {
-    return [];
-  }
-}
-function setOrders(orders) {
-  localStorage.setItem("orders", JSON.stringify(orders));
-}
 
 function formatYen(amount) {
   return `¥${Number(amount).toLocaleString()}`;
 }
-function calcPointsFromYen(totalYen) {
-  return Math.floor(Number(totalYen) / 10);
-}
 
-function getUserPoints() {
-  return Number(localStorage.getItem("points") || "0");
-}
-function setUserPoints(points) {
-  localStorage.setItem("points", String(Math.max(Number(points) || 0, 0)));
+function calcPoints(totalYen) {
+  return Math.floor(Number(totalYen) / 10);
 }
 
 function updateHeaderCartCount() {
@@ -81,416 +26,350 @@ function updateHeaderCartCount() {
   if (el) el.textContent = totalQty;
 }
 
-function computeItemsTotal(cart) {
-  let total = 0;
-  cart.forEach((item) => {
-    total += Number(item.price || 0) * Number(item.qty || 1);
-  });
-  return total;
-}
-
-function makeOrderId() {
-  return "local_" + String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function getSelectedPayMethod() {
-  const picked = payRadios.find((r) => r.checked);
-  return picked ? picked.value : "card";
-}
-
 function showError(msg) {
-  if (!errorMsg) return;
-  errorMsg.textContent = msg;
-  errorMsg.classList.remove("hidden");
-}
-function clearError() {
-  if (!errorMsg) return;
-  errorMsg.textContent = "";
-  errorMsg.classList.add("hidden");
+  const el = document.getElementById("errorMsg");
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove("hidden");
 }
 
-function getDeliveryDetails() {
+function clearError() {
+  const el = document.getElementById("errorMsg");
+  if (!el) return;
+  el.textContent = "";
+  el.classList.add("hidden");
+}
+
+function getPayMethod() {
+  const checked = document.querySelector('input[name="payMethod"]:checked');
+  return checked ? checked.value : "card";
+}
+
+function getUserEmailFromStorage() {
+  try {
+    const u1 = JSON.parse(localStorage.getItem("currentUser") || "null");
+    if (u1?.email) return String(u1.email);
+  } catch {}
+  try {
+    const u2 = JSON.parse(localStorage.getItem("user") || "null");
+    if (u2?.email) return String(u2.email);
+  } catch {}
+  return "";
+}
+
+function getDeliveryData() {
   return {
-    fullName: (fullNameEl?.value || "").trim(),
-    phone: (phoneEl?.value || "").trim(),
-    postalCode: (postalCodeEl?.value || "").trim(),
-    address1: (address1El?.value || "").trim(),
-    address2: (address2El?.value || "").trim(),
-    city: (cityEl?.value || "").trim(),
-    prefecture: (prefectureEl?.value || "").trim(),
+    fullName: document.getElementById("fullName")?.value.trim(),
+    phone: document.getElementById("phone")?.value.trim(),
+    postalCode: document.getElementById("postalCode")?.value.trim(),
+    address1: document.getElementById("address1")?.value.trim(),
+    address2: document.getElementById("address2")?.value.trim(),
+    city: document.getElementById("city")?.value.trim(),
+    prefecture: document.getElementById("prefecture")?.value.trim(),
   };
 }
 
-function deliveryDetailsValid() {
-  const d = getDeliveryDetails();
-  return (
-    d.fullName &&
-    d.phone &&
-    d.postalCode &&
-    d.address1 &&
-    d.city &&
-    d.prefecture
-  );
+function validateDelivery(d) {
+  if (!d.fullName) return "Full Name is required.";
+  if (!d.phone) return "Phone is required.";
+  if (!d.postalCode) return "Postal Code is required.";
+  if (!d.address1) return "Address Line 1 is required.";
+  if (!d.city) return "City is required.";
+  if (!d.prefecture) return "Prefecture is required.";
+  return null;
 }
 
 function buildAddressLine(d) {
-  const a2 = d.address2 ? `, ${d.address2}` : "";
-  return `${d.address1}${a2}, ${d.city}, ${d.prefecture}`;
+  // Backend expects ONE string: addressLine
+  const parts = [
+    d.address1,
+    d.address2,
+    d.city,
+    d.prefecture,
+  ].filter(Boolean);
+  return parts.join(", ");
 }
 
-function toggleCardUI() {
-  const method = getSelectedPayMethod();
-  if (cardWrap) cardWrap.classList.toggle("hidden", method !== "card");
-}
-
-// ---------- backend fetch ----------
-async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("token");
-
-  const res = await fetch(API_BASE + path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
-    throw new Error(msg);
+// ============ API helpers ============
+async function apiGet(path) {
+  const res = await fetch(path, { method: "GET" });
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { rawText: raw };
   }
+  if (!res.ok) throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
   return data;
 }
 
-// ---------- points UI ----------
-function updatePointsUI(method, grandTotal) {
-  if (!pointsHint || !userPointsEl || !neededPointsEl) return;
+async function apiPost(path, body, tokenRequired = false) {
+  const headers = { "Content-Type": "application/json" };
 
-  if (method === "points") {
-    const wallet = getUserPoints();
-    const need = calcPointsFromYen(grandTotal);
-    userPointsEl.textContent = wallet.toLocaleString();
-    neededPointsEl.textContent = need.toLocaleString();
-    pointsHint.classList.remove("hidden");
-  } else {
-    pointsHint.classList.add("hidden");
+  if (tokenRequired) {
+    const token = getToken();
+    if (!token) throw new Error("You are not logged in. Please login again.");
+    headers.Authorization = `Bearer ${token}`;
   }
+
+  const res = await fetch(path, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body || {}),
+  });
+
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { rawText: raw };
+  }
+
+  if (!res.ok) throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
+  return data;
 }
 
-// ---------- state ----------
-let cart = getCart();
-let itemsTotal = computeItemsTotal(cart);
-let grandTotal = 0;
-let earnedPoints = 0;
+// ============ Stripe setup (split fields) ============
+let stripe = null;
+let elements = null;
+let cardNumberEl = null;
+let cardExpiryEl = null;
+let cardCvcEl = null;
 
-// ---------- render ----------
-function renderSummary() {
-  cart = getCart();
-  itemsTotal = computeItemsTotal(cart);
+async function initStripeCardUI() {
+  const cfg = await apiGet("/api/payments/config");
+  const publishableKey = cfg.publishableKey;
+  if (!publishableKey) throw new Error("Missing Stripe publishable key.");
 
-  grandTotal = itemsTotal + DELIVERY_FEE;
-  earnedPoints = calcPointsFromYen(grandTotal);
+  stripe = Stripe(publishableKey);
+  elements = stripe.elements();
 
-  if (itemsTotalEl) itemsTotalEl.textContent = formatYen(itemsTotal);
-  if (deliveryFeeEl) deliveryFeeEl.textContent = formatYen(DELIVERY_FEE);
-  if (totalYenEl) totalYenEl.textContent = formatYen(grandTotal);
-  if (pointsEarnedEl) pointsEarnedEl.textContent = `+${earnedPoints}`;
+  const stripeStyle = {
+    base: {
+      color: "#ffffff",
+      fontSize: "16px",
+      fontFamily:
+        "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+      "::placeholder": { color: "rgba(255,255,255,0.55)" },
+    },
+    invalid: { color: "#fca5a5" },
+  };
+
+  cardNumberEl = elements.create("cardNumber", { style: stripeStyle });
+  cardExpiryEl = elements.create("cardExpiry", { style: stripeStyle });
+  cardCvcEl = elements.create("cardCvc", { style: stripeStyle });
+
+  const num = document.getElementById("card-number");
+  const exp = document.getElementById("card-expiry");
+  const cvc = document.getElementById("card-cvc");
+  if (!num || !exp || !cvc) {
+    throw new Error("Missing #card-number / #card-expiry / #card-cvc in HTML.");
+  }
+
+  cardNumberEl.mount(num);
+  cardExpiryEl.mount(exp);
+  cardCvcEl.mount(cvc);
+
+  const errEl = document.getElementById("card-error");
+  const showStripeError = (event) => {
+    if (!errEl) return;
+    errEl.textContent = event.error ? event.error.message : "";
+  };
+
+  cardNumberEl.on("change", showStripeError);
+  cardExpiryEl.on("change", showStripeError);
+  cardCvcEl.on("change", showStripeError);
+}
+
+// ============ totals on page ============
+function renderTotals() {
+  const cart = getCart();
+
+  const emptyMsg = document.getElementById("emptyMsg");
+  const detailsCard = document.querySelector(".details");
+  const sealBtn = document.getElementById("sealOrderBtn");
 
   if (!cart.length) {
+    if (detailsCard) detailsCard.classList.add("hidden");
     if (emptyMsg) emptyMsg.classList.remove("hidden");
-    if (sealBtn) {
-      sealBtn.disabled = true;
-      sealBtn.classList.add("opacity-50", "cursor-not-allowed");
-    }
-  } else {
-    if (emptyMsg) emptyMsg.classList.add("hidden");
-    if (sealBtn) {
-      sealBtn.disabled = false;
-      sealBtn.classList.remove("opacity-50", "cursor-not-allowed");
-    }
+    if (sealBtn) sealBtn.disabled = true;
+    return;
   }
 
-  updatePointsUI(getSelectedPayMethod(), grandTotal);
-  toggleCardUI();
+  if (detailsCard) detailsCard.classList.remove("hidden");
+  if (emptyMsg) emptyMsg.classList.add("hidden");
+  if (sealBtn) sealBtn.disabled = false;
+
+  const itemsTotal = cart.reduce(
+    (sum, it) => sum + Number(it.price || 0) * Number(it.qty || 1),
+    0
+  );
+
+  const deliveryFee = 318;
+  const totalYen = itemsTotal + deliveryFee;
+  const points = calcPoints(itemsTotal);
+
+  document.getElementById("itemsTotal").textContent = formatYen(itemsTotal);
+  document.getElementById("deliveryFee").textContent = formatYen(deliveryFee);
+  document.getElementById("totalYen").textContent = formatYen(totalYen);
+  document.getElementById("pointsEarned").textContent = `+${points}`;
 }
 
-// ---------- stripe setup ----------
-let stripe = null;
-let cardNumber = null;
-let cardExpiry = null;
-let cardCvc = null;
+// show/hide card UI when user switches pay method
+function syncPaymentUI() {
+  const cardWrap = document.getElementById("cardWrap");
+  const pointsHint = document.getElementById("pointsHint");
 
-async function initStripe() {
-  // 1) ensure backend config reachable + key exists
-  const cfg = await apiFetch("/api/payments/config");
-  if (!cfg?.publishableKey)
-    throw new Error(
-      "Missing Stripe publishable key (check Render env STRIPE_PUBLISHABLE_KEY)"
-    );
+  const method = getPayMethod();
+  if (cardWrap) cardWrap.classList.toggle("hidden", method !== "card");
+  if (pointsHint) pointsHint.classList.toggle("hidden", method !== "points");
+}
 
-  // 2) ensure Stripe.js is loaded
-  if (!window.Stripe) {
-    throw new Error(
-      "Stripe.js not loaded. Ensure <script src='https://js.stripe.com/v3/'> is included."
-    );
+// ============ checkout submit ============
+async function handleSealOrder() {
+  clearError();
+
+  const cart = getCart();
+  if (!cart.length) {
+    showError("Your cart is empty. There is nothing to seal.");
+    return;
   }
 
-  stripe = Stripe(cfg.publishableKey);
-  const elements = stripe.elements();
+  const delivery = getDeliveryData();
+  const deliveryErr = validateDelivery(delivery);
+  if (deliveryErr) {
+    showError(deliveryErr);
+    return;
+  }
 
-  const style = {
-    base: {
-      color: "#fff",
-      fontSize: "16px",
-      "::placeholder": { color: "#9CA3AF" },
-    },
-    invalid: { color: "#FCA5A5" },
-  };
+  const method = getPayMethod();
 
-  // create 3 separate fields
-  cardNumber = elements.create("cardNumber", { style });
-  cardExpiry = elements.create("cardExpiry", { style });
-  cardCvc = elements.create("cardCvc", { style });
+  const btn = document.getElementById("sealOrderBtn");
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = "SEALING...";
 
-  // mount to your IDs
-  cardNumber.mount("#card-number");
-  cardExpiry.mount("#card-expiry");
-  cardCvc.mount("#card-cvc");
+  try {
+    // ✅ BACKEND EXPECTS: productId + qty
+    const items = cart.map((it) => ({
+      productId: String(it.id),
+      qty: Number(it.qty || 1),
+    }));
 
-  const showStripeError = (e) => {
-    const el = document.getElementById("card-error");
-    if (el) el.textContent = e.error ? e.error.message : "";
-  };
+    // Shipping in cents (you display ¥318; backend expects shippingCents number)
+    const shippingCents = 318;
 
-  cardNumber.on("change", showStripeError);
-  cardExpiry.on("change", showStripeError);
-  cardCvc.on("change", showStripeError);
-}
+    if (method === "card") {
+      // PaymentIntent (requires auth on backend)
+      const pi = await apiPost(
+        "/api/payments/create-payment-intent",
+        { items, shippingCents },
+        true
+      );
 
-function waitForStripe(maxMs = 8000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const timer = setInterval(() => {
-      if (window.Stripe) {
-        clearInterval(timer);
-        resolve();
-        return;
-      }
-      if (Date.now() - start > maxMs) {
-        clearInterval(timer);
-        reject(
-          new Error(
-            "Stripe.js not loaded. Check <script src='https://js.stripe.com/v3/'>"
-          )
-        );
-      }
-    }, 100);
-  });
-}
+      const clientSecret = pi.clientSecret;
+      if (!clientSecret) throw new Error("Missing clientSecret from server.");
 
-// ---------- events ----------
-payRadios.forEach((r) => {
-  r.addEventListener("change", () => {
-    clearError();
-    renderSummary();
-  });
-});
-
-[
-  fullNameEl,
-  phoneEl,
-  postalCodeEl,
-  address1El,
-  address2El,
-  cityEl,
-  prefectureEl,
-].forEach((el) => {
-  if (!el) return;
-  el.addEventListener("input", () => {
-    if (!errorMsg?.classList.contains("hidden")) clearError();
-  });
-});
-
-// ---------- seal order ----------
-if (sealBtn) {
-  sealBtn.addEventListener("click", async () => {
-    clearError();
-
-    cart = getCart();
-    if (!cart.length) {
-      showError("Nothing to seal. Your cart is empty.");
-      return;
-    }
-
-    if (!deliveryDetailsValid()) {
-      showError("Complete your delivery details. No missing fields.");
-      return;
-    }
-
-    // totals
-    itemsTotal = computeItemsTotal(cart);
-    grandTotal = itemsTotal + DELIVERY_FEE;
-    earnedPoints = calcPointsFromYen(grandTotal);
-
-    const method = getSelectedPayMethod();
-    const d = getDeliveryDetails();
-
-    // build order payload for backend
-    const orderPayload = {
-      items: cart.map((c) => ({
-        productId: String(c.id),
-        qty: Number(c.qty || 1),
-      })),
-      shippingCents: DELIVERY_FEE,
-      recipientName: d.fullName,
-      email: null,
-      phone: d.phone,
-      addressLine: buildAddressLine(d),
-      postalCode: d.postalCode,
-      stripePaymentIntentId: null,
-    };
-
-    // ---- POINTS (local demo) ----
-    if (method === "points") {
-      const wallet = getUserPoints();
-      const need = calcPointsFromYen(grandTotal);
-
-      if (wallet < need) {
-        showError("Insufficient points. Choose card or earn more points.");
-        return;
-      }
-
-      // deduct + earn (local)
-      setUserPoints(wallet - need);
-      const walletNow = getUserPoints();
-      setUserPoints(walletNow + earnedPoints);
-
-      // store local order
-      const pendingOrder = {
-        orderId: makeOrderId(),
-        itemsTotal,
-        deliveryFee: DELIVERY_FEE,
-        total: grandTotal,
-        status: "PAID",
-        deliveryMethod: "Delivery",
-        deliveryDetails: d,
-        paymentMethod: "Prison Realm Points",
-        pointsEarned: earnedPoints,
-        createdAt: new Date().toISOString(),
-        items: cart.map((c) => ({
-          id: c.id,
-          name: c.name,
-          price: c.price,
-          qty: c.qty,
-          image: c.image,
-        })),
-      };
-
-      const orders = getOrders();
-      orders.push(pendingOrder);
-      setOrders(orders);
-
-      setCart([]);
-      updateHeaderCartCount();
-
-      window.location.href = "confirmed.html";
-      return;
-    }
-
-    // ---- CARD (stripe paymentIntent + backend order) ----
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        showError("Login required before card payment.");
-        window.location.href = "login.html";
-        return;
-      }
-
-      if (!stripe || !cardNumber || !cardExpiry || !cardCvc) {
-        showError("Stripe is not ready yet. Refresh and try again.");
-        return;
-      }
-
-      // get email from backend session
-      const me = await apiFetch("/api/me");
-      orderPayload.email = me.email;
-
-      // 1) create PaymentIntent (server calculates totals from DB)
-      const pi = await apiFetch("/api/payments/create-payment-intent", {
-        method: "POST",
-        body: JSON.stringify({
-          items: orderPayload.items,
-          shippingCents: DELIVERY_FEE,
-        }),
-      });
-
-      // 2) confirm payment in browser
-      const cardNameEl = document.getElementById("cardName");
-      const cardholderName = (cardNameEl?.value || "").trim();
-
-      const result = await stripe.confirmCardPayment(pi.clientSecret, {
+      // Confirm card payment
+      const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: cardNumber,
-          billing_details: { name: cardholderName },
+          card: cardNumberEl,
+          billing_details: {
+            name: delivery.fullName,
+          },
         },
       });
 
-      if (result.error) {
-        throw new Error(result.error.message || "Payment failed");
+      if (result.error) throw new Error(result.error.message);
+      if (!result.paymentIntent) throw new Error("No PaymentIntent returned.");
+      if (result.paymentIntent.status !== "succeeded") {
+        throw new Error(`Payment status: ${result.paymentIntent.status}`);
       }
 
-      // 3) store order in DB
-      orderPayload.stripePaymentIntentId = result.paymentIntent.id;
+      // ✅ BACKEND ORDER EXPECTS THESE DELIVERY FIELDS:
+      // recipientName, email, phone, addressLine, postalCode (NOT a "delivery" object)
+      const orderPayload = {
+        items,
+        shippingCents,
+        recipientName: delivery.fullName,
+        email: getUserEmailFromStorage(),
+        phone: delivery.phone,
+        addressLine: buildAddressLine(delivery),
+        postalCode: delivery.postalCode,
+        stripePaymentIntentId: result.paymentIntent.id,
+      };
 
-      const created = await apiFetch("/api/orders", {
-        method: "POST",
-        body: JSON.stringify(orderPayload),
-      });
+      if (!orderPayload.email) {
+        throw new Error("Missing email. Please login again.");
+      }
 
-      // clear cart + go confirmed
-      setCart([]);
+      await apiPost("/api/orders", orderPayload, true);
+
+      // clear cart locally
+      localStorage.setItem("cart", JSON.stringify([]));
       updateHeaderCartCount();
 
-      localStorage.setItem("lastOrderId", created.orderId);
-      window.location.href = "confirmed.html";
-    } catch (e) {
-      console.error(e);
-      showError(e?.message || "Card checkout failed.");
+      // go orders page (your orders.html currently reads localStorage; later you’ll switch to API)
+      window.location.href = "orders.html";
+      return;
     }
-  });
+
+    showError("Points payment not wired to backend yet. Use card for now.");
+  } catch (err) {
+    showError(err.message || "Something went wrong.");
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  }
 }
 
-// ---------- side menu ----------
-const sideMenu = document.getElementById("sideMenu");
-const menuBtn = document.getElementById("menuBtn");
-const closeMenuBtn = document.getElementById("closeMenuBtn");
+// ============ side menu ============
+function initSideMenu() {
+  const sideMenu = document.getElementById("sideMenu");
+  const menuBtn = document.getElementById("menuBtn");
+  const closeMenuBtn = document.getElementById("closeMenuBtn");
 
-if (menuBtn && sideMenu) {
-  menuBtn.addEventListener("click", () => {
-    sideMenu.classList.remove("translate-x-[-110%]");
-    sideMenu.classList.add("translate-x-0");
-  });
-}
-if (closeMenuBtn && sideMenu) {
-  closeMenuBtn.addEventListener("click", () => {
-    sideMenu.classList.add("translate-x-[-110%]");
-    sideMenu.classList.remove("translate-x-0");
-  });
+  if (menuBtn && sideMenu) {
+    menuBtn.addEventListener("click", () => {
+      sideMenu.classList.remove("translate-x-[-110%]");
+      sideMenu.classList.add("translate-x-0");
+    });
+  }
+
+  if (closeMenuBtn && sideMenu) {
+    closeMenuBtn.addEventListener("click", () => {
+      sideMenu.classList.add("translate-x-[-110%]");
+      sideMenu.classList.remove("translate-x-0");
+    });
+  }
 }
 
-// ---------- init ----------
-document.addEventListener("DOMContentLoaded", async () => {
+// ============ init ============
+(async function init() {
   updateHeaderCartCount();
-  renderSummary();
+  renderTotals();
+  initSideMenu();
+
+  if (!getToken()) {
+    window.location.href = "login.html";
+    return;
+  }
 
   try {
-    await waitForStripe();
-    await initStripe();
+    await initStripeCardUI();
   } catch (e) {
-    console.error("Stripe init failed:", e);
-    showError(e.message || "Stripe init failed");
+    console.error(e);
+    showError("Stripe card form failed to load. Check publishable key / console.");
   }
-});
+
+  document.querySelectorAll('input[name="payMethod"]').forEach((r) => {
+    r.addEventListener("change", syncPaymentUI);
+  });
+  syncPaymentUI();
+
+  document
+    .getElementById("sealOrderBtn")
+    .addEventListener("click", handleSealOrder);
+})();

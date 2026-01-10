@@ -121,20 +121,29 @@ label {
   margin-left: -20px;
 }
 
-/* Stripe Elements must be clickable */
+/* ===== STRIPE ELEMENTS FIX ===== */
+
+/* Ensure Stripe containers are clickable */
 #card-number,
 #card-expiry,
 #card-cvc {
   position: relative;
-  z-index: 20;
+  z-index: 50;
   pointer-events: auto;
 }
 
-/* Stripe injects an iframe. Make sure it can receive clicks too */
+/* Stripe injects iframes – they must receive pointer events */
 #card-number iframe,
 #card-expiry iframe,
 #card-cvc iframe {
-  pointer-events: auto !important;
+  pointer-events: auto;
+}
+
+/* Ensure no parent blocks clicks */
+.cardWrap {
+  position: relative;
+  z-index: 40;
+  pointer-events: auto;
 }
 
 /* checkout – payment options spacing */
