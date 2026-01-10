@@ -121,7 +121,21 @@ label {
   margin-left: -20px;
 }
 
+/* Stripe Elements must be clickable */
+#card-number,
+#card-expiry,
+#card-cvc {
+  position: relative;
+  z-index: 20;
+  pointer-events: auto;
+}
 
+/* Stripe injects an iframe. Make sure it can receive clicks too */
+#card-number iframe,
+#card-expiry iframe,
+#card-cvc iframe {
+  pointer-events: auto !important;
+}
 
 /* checkout – payment options spacing */
 .payment-options label,
