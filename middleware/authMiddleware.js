@@ -2,8 +2,7 @@ const { getPool, sql } = require("../config/dbConfig");
 
 async function authMiddleware(req, res, next) {
   try {
-    console.log("Auth middleware checking...");
-    console.log("Headers:", req.headers);
+    console.log("🔒 Auth middleware checking...");
 
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -14,7 +13,7 @@ async function authMiddleware(req, res, next) {
     );
 
     if (!token) {
-      console.log("No token provided");
+      console.log("❌ No token provided");
       return res.status(401).json({
         success: false,
         message: "No token provided",
@@ -23,49 +22,67 @@ async function authMiddleware(req, res, next) {
 
     const pool = await getPool();
 
-    // check if session exists and is valid
-    const sessionResult = await pool
+    // check if token exists at all
+    const tokenCheck = await pool
       .request()
-      .input("token", sql.NVarChar(255), token).query(`
-        SELECT TOP 1 s.* 
-        FROM Sessions s
-        WHERE s.Token = @token AND s.ExpiresAt > GETDATE()
-      `);
+      .input("token", sql.NVarChar(255), token)
+      .query(`SELECT * FROM Sessions WHERE Token = @token`);
 
-    if (sessionResult.recordset.length === 0) {
-      console.log("Invalid or expired session");
+    console.log(
+      `Token exists in DB: ${
+        tokenCheck.recordset.length > 0 ? "✅ Yes" : "❌ No"
+      }`
+    );
+
+    if (tokenCheck.recordset.length === 0) {
+      console.log("Token not found in Sessions table");
       return res.status(401).json({
         success: false,
         message: "Invalid or expired token",
       });
     }
 
-    // get user details
-    const userResult = await pool
+    // Check if session exists and is valid
+    const sessionResult = await pool
       .request()
-      .input("userId", sql.Int, sessionResult.recordset[0].UserId).query(`
-        SELECT Id, Username, Email, Points
-        FROM Users
-        WHERE Id = @userId
+      .input("token", sql.NVarChar(255), token).query(`
+        SELECT TOP 1 s.*, u.Id as UserId, u.Username, u.Email, u.Points
+        FROM Sessions s
+        JOIN Users u ON s.UserId = u.Id
+        WHERE s.Token = @token AND s.ExpiresAt > GETDATE()
       `);
 
-    if (userResult.recordset.length === 0) {
-      console.log("User not found");
+    if (sessionResult.recordset.length === 0) {
+      console.log("Invalid or expired session");
+
+      // Check if expired
+      const expiredCheck = await pool
+        .request()
+        .input("token", sql.NVarChar(255), token)
+        .query(`SELECT ExpiresAt FROM Sessions WHERE Token = @token`);
+
+      if (expiredCheck.recordset.length > 0) {
+        console.log(`Token expired at: ${expiredCheck.recordset[0].ExpiresAt}`);
+      }
+
       return res.status(401).json({
         success: false,
-        message: "User not found",
+        message: "Invalid or expired token",
       });
     }
 
-    const user = userResult.recordset[0];
-    req.user = {
-      id: user.Id,
-      username: user.Username,
-      email: user.Email,
-      points: user.Points,
+    const session = sessionResult.recordset[0];
+    const user = {
+      id: session.UserId,
+      username: session.Username,
+      email: session.Email,
+      points: session.Points,
     };
 
-    console.log("Auth successful for user:", user.Email);
+    req.user = user;
+
+    console.log(`✅ Auth successful for user: ${user.email}`);
+    console.log(`User points: ${user.points}`);
     next();
   } catch (err) {
     console.error("Auth middleware error:", err);

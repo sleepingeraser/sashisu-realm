@@ -3,6 +3,9 @@ const sessionModel = require("../models/sessionModel");
 
 async function signup(req, res) {
   try {
+    console.log("📝 Signup request received");
+    console.log("Body:", req.body);
+
     const { codename, email, password } = req.body || {};
 
     if (!codename || !email || !password) {
@@ -12,6 +15,7 @@ async function signup(req, res) {
       });
     }
 
+    console.log(`Creating user: ${codename}, ${email}`);
     const created = await userModel.createUser(codename, email, password);
 
     if (created.error) {
@@ -21,7 +25,14 @@ async function signup(req, res) {
       });
     }
 
+    console.log(`User created successfully: ${created.id}`);
+    console.log(`Creating session for user: ${created.id}`);
+
     const session = await sessionModel.createSession(created.id);
+
+    console.log(
+      `Session created with token: ${session.token.substring(0, 20)}...`
+    );
 
     res.json({
       success: true,
@@ -34,7 +45,7 @@ async function signup(req, res) {
       },
     });
   } catch (err) {
-    console.error("Signup error:", err);
+    console.error("❌ Signup error:", err);
     res.status(500).json({
       success: false,
       message: "Signup failed",
@@ -45,6 +56,9 @@ async function signup(req, res) {
 
 async function login(req, res) {
   try {
+    console.log("🔑 Login request received");
+    console.log("Body:", req.body);
+
     const { email, password } = req.body || {};
 
     if (!email || !password) {
@@ -54,16 +68,26 @@ async function login(req, res) {
       });
     }
 
+    console.log(`Verifying login for: ${email}`);
     const user = await userModel.verifyLogin(email, password);
 
     if (!user) {
+      console.log(`❌ Invalid credentials for: ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
       });
     }
 
+    console.log(`✅ Login successful for user: ${user.id}`);
+    console.log(`Creating session for user: ${user.id}`);
+
     const session = await sessionModel.createSession(user.id);
+
+    console.log(
+      `✅ Session created with token: ${session.token.substring(0, 20)}...`
+    );
+    console.log(`Token expires at: ${session.expiresAt}`);
 
     res.json({
       success: true,
@@ -76,7 +100,7 @@ async function login(req, res) {
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("❌ Login error:", err);
     res.status(500).json({
       success: false,
       message: "Login failed",
@@ -86,6 +110,7 @@ async function login(req, res) {
 }
 
 async function me(req, res) {
+  console.log("👤 Me request for user:", req.user);
   res.json({
     success: true,
     user: req.user,
