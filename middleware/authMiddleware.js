@@ -1,48 +1,40 @@
-const sessionModel = require("../models/sessionModel");
 const { getPool, sql } = require("../config/dbConfig");
 
 async function authMiddleware(req, res, next) {
   try {
-    const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-    if (!token) return res.status(401).json({ message: "Missing token" });
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
 
     const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("Token", sql.NVarChar(128), token)
-      .query(
-        `SELECT TOP 1 s.Token, s.UserId, s.ExpiresAt,
-                u.Username, u.Email, u.Points
-         FROM Sessions s
-         JOIN Users u ON u.Id = s.UserId
-         WHERE s.Token = @Token`
-      );
+    const result = await pool.request().input("token", sql.NVarChar(255), token)
+      .query(`
+        SELECT s.*, u.Id as userId, u.Username, u.Email, u.Points
+        FROM Sessions s
+        JOIN Users u ON s.UserId = u.Id
+        WHERE s.Token = @token AND s.ExpiresAt > GETDATE()
+      `);
 
     if (result.recordset.length === 0) {
-      return res.status(401).json({ message: "Invalid token" });
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
 
-    const row = result.recordset[0];
-    const expiresAt = new Date(row.ExpiresAt);
-
-    if (Date.now() > expiresAt.getTime()) {
-      return res.status(401).json({ message: "Session expired" });
-    }
-
+    const session = result.recordset[0];
     req.user = {
-      id: row.UserId,
-      username: row.Username,
-      email: row.Email,
-      points: row.Points,
-      token: row.Token,
+      id: session.userId,
+      username: session.Username,
+      email: session.Email,
+      points: session.Points,
+      token: session.Token,
     };
 
     next();
   } catch (err) {
-    console.error("authMiddleware error:", err);
-    res.status(500).json({ message: "Auth error" });
+    console.error("Auth middleware error:", err);
+    res.status(500).json({ message: "Authentication error" });
   }
 }
 

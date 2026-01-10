@@ -3,7 +3,7 @@ const router = express.Router();
 const paymentController = require("../controllers/paymentController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-// GET publishable key
+// GET stripe publishable key (no auth required)
 router.get("/config", paymentController.config);
 
 // POST create payment intent (requires auth)
@@ -13,7 +13,7 @@ router.post(
   paymentController.createPaymentIntent
 );
 
-// POST Stripe webhook (no auth, raw body)
+// POST stripe webhook (no auth, raw body)
 router.post(
   "/webhook",
   express.raw({ type: "application/json" }),

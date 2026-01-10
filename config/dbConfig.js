@@ -34,4 +34,5 @@ async function getPool() {
 module.exports = {
   sql,
   getPool,
+  dbConfig,
 };

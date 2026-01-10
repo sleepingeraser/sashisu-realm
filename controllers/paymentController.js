@@ -1,76 +1,129 @@
 const Stripe = require("stripe");
 const productModel = require("../models/productModel");
-const orderModel = require("../models/orderModel");
 
+// initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // get publishable key
 async function config(req, res) {
-  res.json({
-    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-  });
+  try {
+    res.json({
+      success: true,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    });
+  } catch (err) {
+    console.error("Config error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get Stripe config",
+    });
+  }
 }
 
 // create payment intent
 async function createPaymentIntent(req, res) {
+  console.log("Creating payment intent...");
+  console.log("User:", req.user);
+  console.log("Body:", req.body);
+
   try {
-    const { items, shippingCents = 0 } = req.body || {};
+    const { items, shippingCents = 318 } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Missing cart items" });
+      return res.status(400).json({
+        success: false,
+        message: "Cart is empty",
+      });
     }
 
-    // calculate total
+    // Calculate total
     let subtotal = 0;
+    const productDetails = [];
+
     for (const item of items) {
       const productId = String(item.productId || "");
-      const qty = Number(item.qty || 0);
+      const qty = Number(item.qty || 1);
 
       if (!productId || qty <= 0) continue;
 
       const product = await productModel.getProductById(productId);
       if (!product) continue;
 
-      subtotal += Number(product.PriceCents) * qty;
+      const itemTotal = Number(product.PriceCents) * qty;
+      subtotal += itemTotal;
+
+      productDetails.push({
+        productId,
+        name: product.Name,
+        quantity: qty,
+        unitPrice: product.PriceCents,
+        total: itemTotal,
+      });
     }
 
     if (subtotal === 0) {
-      return res.status(400).json({ message: "No valid items" });
+      return res.status(400).json({
+        success: false,
+        message: "No valid items in cart",
+      });
     }
 
-    const shipping = Math.max(0, Number(shippingCents || 0));
+    const shipping = Math.max(0, Number(shippingCents || 318));
     const total = subtotal + shipping;
+
+    console.log("Payment calculation:");
+    console.log("- Subtotal:", subtotal, "cents");
+    console.log("- Shipping:", shipping, "cents");
+    console.log("- Total:", total, "cents");
 
     // create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: total,
-      currency: "ypy",
+      currency: "sgd", // Singapore dollars
       automatic_payment_methods: {
         enabled: true,
       },
       metadata: {
         userId: String(req.user.id),
-        items: JSON.stringify(items),
-        shippingCents: shipping,
+        userEmail: req.user.email,
+        itemsCount: items.length.toString(),
+        subtotal: subtotal.toString(),
+        shipping: shipping.toString(),
+        total: total.toString(),
       },
+      description: `Order from ${req.user.email}`,
     });
 
+    console.log("Payment Intent created:", paymentIntent.id);
+    console.log(
+      "Client Secret:",
+      paymentIntent.client_secret ? "Present" : "Missing"
+    );
+
     res.json({
+      success: true,
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
       amount: total,
       currency: paymentIntent.currency,
+      breakdown: {
+        subtotal,
+        shipping,
+        total,
+      },
     });
   } catch (err) {
     console.error("createPaymentIntent error:", err);
     res.status(500).json({
-      message: "Failed to create payment intent",
+      success: false,
+      message: "Failed to create payment",
       error: err.message,
+      details: err.type || "Unknown error",
     });
   }
 }
 
-// handle successful payment webhook
+// handle webhook (for future use)
 async function handleWebhook(req, res) {
   const sig = req.headers["stripe-signature"];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -84,42 +137,16 @@ async function handleWebhook(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // handle the event
+  // handle different events
   switch (event.type) {
     case "payment_intent.succeeded":
-      const paymentIntent = event.data.object;
-      console.log("PaymentIntent was successful:", paymentIntent.id);
-
-      // update order status in database
-      try {
-        await orderModel.setOrderStatusByPaymentIntent(
-          paymentIntent.id,
-          "PAID"
-        );
-        console.log(
-          `Order for payment intent ${paymentIntent.id} marked as PAID`
-        );
-      } catch (err) {
-        console.error("Failed to update order status:", err);
-      }
+      console.log("Payment succeeded:", event.data.object.id);
       break;
-
     case "payment_intent.payment_failed":
-      const failedPayment = event.data.object;
-      console.log("Payment failed:", failedPayment.id);
-
-      try {
-        await orderModel.setOrderStatusByPaymentIntent(
-          failedPayment.id,
-          "FAILED"
-        );
-      } catch (err) {
-        console.error("Failed to update failed payment status:", err);
-      }
+      console.log("Payment failed:", event.data.object.id);
       break;
-
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      console.log(`Unhandled event type: ${event.type}`);
   }
 
   res.json({ received: true });
