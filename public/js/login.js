@@ -9,30 +9,41 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     return;
   }
 
+  const loginBtn = document.getElementById("loginBtn");
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Logging in...";
+
   try {
-    const res = await fetch("/api/login", {
+    const res = await fetch("http://localhost:3000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
 
-    if (!res.ok) {
+    if (!data.success) {
       alert(data.message || "Login failed");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "ENTER QUIETLY";
       return;
     }
 
-    // ✅ this token is what authMiddleware expects
+    // store token and user data
     localStorage.setItem("token", data.token);
-
-    // store user for email usage in checkout
     localStorage.setItem("currentUser", JSON.stringify(data.user));
+
+    // tore user points
+    if (data.user.points) {
+      localStorage.setItem("points", data.user.points);
+    }
 
     alert("Login successful!");
     window.location.href = "browse.html";
   } catch (err) {
-    alert("Server error. Please try again.");
     console.error(err);
+    alert("Server error. Please try again.");
+    loginBtn.disabled = false;
+    loginBtn.textContent = "ENTER QUIETLY";
   }
 });
