@@ -47,7 +47,7 @@ button {
 }
 
 /* Specific button styling */
-#sealOrderBtn,
+#sealOrderBtn, 
 #usePointsBtn,
 #menuBtn,
 #closeMenuBtn,
@@ -337,11 +337,11 @@ select:focus {
     padding: 8px 16px;
     font-size: 0.9rem;
   }
-
+  
   .payment-option {
     padding: 12px 16px;
   }
-
+  
   .just-type {
     padding: 10px 12px;
   }
