@@ -141,50 +141,78 @@
                     class="cardWrap ox mt-3 rounded-2xl bg-black/35 border border-purple-500/20 p-4 sm:p-6"
                   >
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <!-- CARD NAME -->
-                      <label class="block mb-2 text-sm">Cardholder Name</label>
-                      <input
-                        id="cardName"
-                        type="text"
-                        placeholder="Name on card"
-                        class="stripe-box w-full mb-4 px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white"
-                      />
-
-                      <!-- STRIPE ELEMENTS -->
-                      <label class="block mb-2 text-sm">Card Number</label>
-                      <div id="card-number" class="stripe-box">
+                      <!-- name on card -->
+                      <div class="sm:col-span-2">
+                        <label
+                          class="field-title block text-sm text-white/80 mb-2"
+                        >
+                          Name on Card
+                        </label>
                         <input
-                          id="cardNumber"
+                          id="cardName"
                           type="text"
-                          placeholder="Number on card"
-                          class="w-full mb-4 px-4 py-3 rounded-xl bg-black/40 border-purple-500/25 text-white"
+                          placeholder="e.g. Koyuki Sky"
+                          autocomplete="cc-name"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
 
-                      <div class="flex gap-4 mt-4">
-                        <div class="w-1/2">
-                          <label class="block mb-2 text-sm">Expiry</label>
-                          <div id="card-expiry" class="stripe-box">
-                            <input
-                              id="cardExpiry"
-                              type="text"
-                              placeholder="expiry date"
-                              class="w-full mb-4 px-4 py-3 rounded-xl bg-black/40 border-purple-500/25 text-white"
-                            />
-                          </div>
-                        </div>
-
-                        <div class="w-1/2">
-                          <label class="block mb-2 text-sm">CVC</label>
-                          <div id="card-cvc" class="stripe-box">
-                            <input
-                          id="cardCVC"
+                      <!-- card number -->
+                      <div class="sm:col-span-2">
+                        <label
+                          class="field-title block text-sm text-white/80 mb-2"
+                        >
+                          Card Number
+                        </label>
+                        <input
+                          id="card-number"
                           type="text"
-                          placeholder="CVC"
-                          class="w-full mb-4 px-4 py-3 rounded-xl bg-black/40 border-purple-500/25 text-white"
+                          placeholder="1234 1234 1234 1234"
+                          autocomplete="cc-number"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
                         />
-                          </div>
-                        </div>
+                      </div>
+
+                      <!-- MM/YY -->
+                      <div>
+                        <label
+                          class="field-title block text-sm text-white/80 mb-2"
+                        >
+                          MM/YY
+                        </label>
+                        <input
+                          id="card-expiry"
+                          type="text"
+                          placeholder="MM/YY"
+                          autocomplete="cc-expiry"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
+                        />
+                      </div>
+
+                      <!-- CVC -->
+                      <div>
+                        <label
+                          class="field-title block text-sm text-white/80 mb-2"
+                        >
+                          CVC
+                        </label>
+                        <input
+                          id="card-cvc"
+                          type="text"
+                          placeholder="123"
+                          autocomplete="cc-cvc"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
+                        />
+
+                        <div
+                          id="card-cvc"
+                          class="just-type w-full px-4 py-3 rounded-xl bg-black/40 border border-purple-500/25 text-white focus-within:outline-none focus-within:ring-2 focus-within:ring-purple-500"
+                        ></div>
+                      </div>
+
+                      <!-- error message -->
+                      <div class="sm:col-span-2">
+                        <p id="card-error" class="text-red-300 text-sm"></p>
                       </div>
                     </div>
                   </section>
