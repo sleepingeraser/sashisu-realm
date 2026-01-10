@@ -12,17 +12,20 @@ const app = express();
 
 app.use(express.json());
 
-// If your frontend is served from the same server, put HTML/CSS/JS in /public
-// app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // API routes (match your frontend fetch paths)
-app.use("/api", authRoutes); // /api/signup, /api/login, /api/me
-app.use("/api/products", productRoutes); // GET /api/products
-app.use("/api/orders", orderRoutes); // GET/POST /api/orders (protected)
-app.use("/api/payments", paymentRoutes); // /api/payments/config, /api/payments/create-payment-intent
+app.use("/api", authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes); 
 
 // health check
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
