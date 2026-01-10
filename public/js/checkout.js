@@ -141,7 +141,7 @@ function updatePointsDisplay() {
     pointsProgressBar.style.width = `${progressPercentage}%`;
   }
 
-  // Update progress text
+   // Update progress text
   if (pointsProgressText) {
     pointsProgressText.textContent = `${Math.min(
       userPoints,
