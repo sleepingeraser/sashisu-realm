@@ -8,6 +8,6 @@ const {
 } = require("../controllers/paymentController");
 
 router.get("/config", config);
-router.post("/create-payment-intent", authMiddleware, createPaymentIntent);
+router.post("/create-payment-intent", createPaymentIntent);
 
 module.exports = router;
