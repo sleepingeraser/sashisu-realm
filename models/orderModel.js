@@ -30,7 +30,7 @@ async function createOrder({
 
     // calculate points earned from this purchase (10 yen = 1 point, 1 yen = 100 cents)
     const pointsEarnedFromPurchase =
-      paymentMethod === "points" ? 0 : Math.floor(subtotalCents / 1000);
+      paymentMethod === "points" ? 0 : Math.floor(subtotalCents / 10);
 
     console.log(`Creating order for user ${userId}`);
     console.log(`- Payment method: ${paymentMethod}`);
