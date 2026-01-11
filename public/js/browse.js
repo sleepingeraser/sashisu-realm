@@ -253,6 +253,44 @@ const PRODUCTS = [
   },
 ];
 
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:3000/api"
+  : "/api";
+
+// fetch products from backend instead of hardcoded array
+async function fetchProductsFromBackend() {
+  try {
+    console.log("Fetching products from:", `${API_BASE}/products`);
+    const response = await fetch(`${API_BASE}/products`);
+    if (!response.ok)
+      throw new Error(`Failed to fetch products: ${response.status}`);
+    const data = await response.json();
+    return data.products || [];
+  } catch (error) {
+    console.error("Failed to fetch products, using local data:", error);
+    return PRODUCTS; // fallback to local data
+  }
+}
+
+// update the initialization to use fetched products
+document.addEventListener("DOMContentLoaded", async function () {
+  try {
+    const backendProducts = await fetchProductsFromBackend();
+    if (backendProducts && backendProducts.length > 0) {
+      PRODUCTS = backendProducts.map((p) => ({
+        id: p.Id.toString(),
+        name: p.Name,
+        price: p.PriceCents / 100, // Convert cents to yen
+        category: p.Category,
+        image: p.ImageUrl,
+        tags: p.tags || [],
+      }));
+    }
+  } catch (error) {
+    console.error("Using local product data:", error);
+  }
+});
+
 // ---------- pagination state ----------
 let allProducts = [];
 let offset = 0;
