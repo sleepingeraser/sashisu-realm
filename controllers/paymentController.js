@@ -70,12 +70,12 @@ async function createPaymentIntent(req, res) {
     const total = subtotal + shipping;
 
     console.log("Payment calculation:");
-    console.log("- Subtotal:", subtotal, "cents (¥", subtotal / 100, ")");
+    console.log("- Subtotal:", subtotal, "cents (¥", subtotal, ")");
     console.log("- Shipping:", shipping, "cents (¥", shipping / 100, ")");
     console.log("- Total:", total, "cents (¥", total / 100, ")");
     console.log(
       "- Points earned from this purchase:",
-      Math.floor(subtotal / 1000)
+      Math.floor(subtotal / 10)
     );
 
     // create payment intent with JPY currency
