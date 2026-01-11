@@ -4,8 +4,8 @@ const API_BASE = window.location.origin.includes("localhost")
   ? "http://localhost:3000/api"
   : "/api";
 
-console.log("🔧 API Base URL:", API_BASE);
-console.log("🌐 Current origin:", window.location.origin);
+console.log("API Base URL:", API_BASE);
+console.log("Current origin:", window.location.origin);
 
 // ============ global variables ============
 let stripe;
@@ -31,8 +31,8 @@ function getAuthToken() {
 // ============ initialize stripe ============
 async function initializeStripe() {
   try {
-    console.log("🔧 Initializing Stripe...");
-    console.log("   API Base:", API_BASE);
+    console.log("Initializing Stripe...");
+    console.log("API Base:", API_BASE);
 
     // check auth first
     if (!checkAuth()) return;
@@ -57,7 +57,7 @@ async function initializeStripe() {
       throw new Error(data.message || "Failed to get Stripe config");
     }
 
-    console.log("✅ Got publishable key");
+    console.log("Got publishable key");
 
     // check if Stripe is loaded
     if (typeof Stripe === "undefined") {
@@ -110,10 +110,10 @@ async function initializeStripe() {
       updatePaymentButtonState();
     });
 
-    console.log("✅ Stripe initialized successfully");
+    console.log("Stripe initialized successfully");
     return true;
   } catch (error) {
-    console.error("❌ Failed to initialize Stripe:", error);
+    console.error("Failed to initialize Stripe:", error);
     const errorElement = document.getElementById("card-errors");
     if (errorElement) {
       errorElement.textContent = `Payment system initialization failed: ${error.message}. Please refresh the page or contact support.`;
