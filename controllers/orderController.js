@@ -88,7 +88,7 @@ async function create(req, res) {
     // validate points payment
     if (paymentMethod === "points") {
       // calculate points needed (10 yen = 1 point)
-      const pointsNeeded = Math.floor(total / 1000);
+      const pointsNeeded = Math.floor(total / 10);
 
       console.log(`Points payment validation:`);
       console.log(`- Total amount: ¥${total / 100}`);
@@ -139,8 +139,7 @@ async function create(req, res) {
       orderId,
       status: paymentMethod === "points" ? "PAID" : "CREATED",
       totalYen: total / 100,
-      pointsEarned:
-        paymentMethod === "points" ? 0 : Math.floor(subtotal / 1000),
+      pointsEarned: paymentMethod === "points" ? 0 : Math.floor(subtotal / 10),
       pointsUsed,
       userPoints: updatedUserPoints,
       message:
