@@ -5,12 +5,9 @@ async function authMiddleware(req, res, next) {
     console.log("🔒 Auth middleware checking...");
 
     const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    let token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-    console.log(
-      "Token received:",
-      token ? `Yes (${token.substring(0, 10)}...)` : "No"
-    );
+    if (token) token = token.trim().replace(/^"+|"+$/g, ""); // ✅ add this
 
     if (!token) {
       console.log("❌ No token provided");
