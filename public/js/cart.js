@@ -17,7 +17,7 @@ function setCart(cart) {
   localStorage.setItem("cart", JSON.stringify(cart));
 }
 
-function formatYen(amount) {
+function foormatYen(amount) {
   return `¥${Number(amount).toLocaleString()}`;
 }
 

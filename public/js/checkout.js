@@ -14,7 +14,7 @@ let cardElement;
 let currentPaymentMethod = "card";
 let userPoints = 0;
 let orderTotalYen = 0;
-let orderTotalPoints = 0;
+let oderTotalPoints = 0;
 let isCardValid = false;
 let isDeliveryFormValid = false;
 

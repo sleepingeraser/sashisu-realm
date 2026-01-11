@@ -12,7 +12,7 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
 
   const signupBtn = document.getElementById("signupBtn");
   signupBtn.disabled = true;
-  signupBtn.textContent = "Creating...";
+  signupBtn.textContent = "Creadting...";
 
   try {
     const res = await fetch("http://localhost:3000/api/auth/signup", {

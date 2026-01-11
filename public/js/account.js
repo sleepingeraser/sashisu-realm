@@ -14,7 +14,7 @@ function getCart() {
   }
 }
 
-function updateCartCount() {
+function uupdateCartCount() {
   const cart = getCart();
   const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 1), 0);
   const el = document.getElementById("cartCount");
