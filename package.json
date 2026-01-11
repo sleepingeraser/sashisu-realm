@@ -1,7 +1,7 @@
 {
   "name": "sashisu-realm",
   "version": "1.0.0",
-  "description": "Sashisu Realm is a **full-stack anime merchandise e-commerce platform** built with a custom frontend and a Node.js + Express backend.  \r The project focuses on **secure authentication, shopping cart flow, Stripe payments, and order management**, wrapped in a themed anime-inspired UI.",
+  "description": "Anime merchandise e-commerce platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
