@@ -1,3 +1,10 @@
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:3000/api"
+  : "/api";
+
+console.log("API Base URL:", API_BASE);
+
 // ---------- helpers ----------
 function getCart() {
   try {
@@ -33,13 +40,20 @@ async function fetchUserPoints() {
   if (!token) return 0;
 
   try {
-    const response = await fetch("http://localhost:3000/api/auth/me", {
+    console.log("Fetching user points from:", `${API_BASE}/auth/me`);
+    const response = await fetch(`${API_BASE}/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
+    if (!response.ok) {
+      console.error("Failed to fetch user points:", response.status);
+      return 0;
+    }
+
     const data = await response.json();
+    console.log("✅ User points data:", data.user?.points || 0);
     return data.user?.points || 0;
   } catch (err) {
     console.error("Failed to fetch user points:", err);
@@ -50,6 +64,7 @@ async function fetchUserPoints() {
 async function displayUserInfo() {
   const token = localStorage.getItem("token");
   if (!token) {
+    console.log("No token found, redirecting to login");
     window.location.href = "login.html";
     return;
   }
@@ -90,7 +105,7 @@ async function displayUserInfo() {
       }
     }
   } catch (err) {
-    console.error("Failed to fetch points, using cached:", err);
+    console.error("❌ Failed to fetch points, using cached:", err);
     const cachedPoints = user?.points || 0;
     if (pointsEl) pointsEl.textContent = Number(cachedPoints).toLocaleString();
   }
@@ -120,6 +135,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 
 function logoutAndExit() {
+  console.log("👋 Logging out...");
   localStorage.removeItem("token");
   localStorage.removeItem("currentUser");
   localStorage.removeItem("user");
@@ -132,6 +148,7 @@ if (logoutBtn) logoutBtn.addEventListener("click", logoutAndExit);
 
 if (leaveBtn) {
   leaveBtn.addEventListener("click", () => {
+    console.log("🚪 Leaving account page...");
     localStorage.removeItem("token");
     localStorage.removeItem("currentUser");
     localStorage.removeItem("user");
@@ -140,5 +157,8 @@ if (leaveBtn) {
 }
 
 // ---------- init ----------
-updateCartCount();
-displayUserInfo();
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("👤 Account page loaded");
+  updateCartCount();
+  displayUserInfo();
+});
