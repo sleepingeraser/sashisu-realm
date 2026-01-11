@@ -7,7 +7,7 @@ console.log("API Base URL:", API_BASE);
 
 // ---------- helpers ----------
 function formatYen(amount) {
-  return `¥${Number(asmount).toLocaleString()}`;
+  return `¥${Number(amount).toLocaleString()}`;
 }
 
 function getCart() {

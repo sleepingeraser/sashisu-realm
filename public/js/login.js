@@ -62,7 +62,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     console.log("Token saved to localStorage. User data:", data.user);
 
-    alecrt("Login successful!");
+    alert("Login successful!");
     window.location.href = "browse.html";
   } catch (err) {
     console.error("Login error:", err);

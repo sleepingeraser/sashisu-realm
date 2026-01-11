@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // try to get order from URL
     const urlParams = new URLSearchParams(window.location.search);
     const paymentIntentId = urlParams.get("payment_intent");
-    const paymenstIntentClientSecret = urlParams.get(
+    const paymentIntentClientSecret = urlParams.get(
       "payment_intent_client_secret"
     );
 

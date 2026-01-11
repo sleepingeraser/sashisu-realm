@@ -4,6 +4,6 @@ document.getElementById("enterRealmBtn").addEventListener("click", () => {
   if (token) {
     window.location.href = "browse.html";
   } else {
-    window.locaticon.href = "login.html";
+    window.location.href = "login.html";
   }
 });

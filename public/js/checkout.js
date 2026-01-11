@@ -11,7 +11,7 @@ console.log("🌐 Current origin:", window.location.origin);
 let stripe;
 let elements;
 let cardElement;
-let currentPaymentMethod = "card";
+let currentPaymentMethod = "cxard";
 let userPoints = 0;
 let orderTotalYen = 0;
 let oderTotalPoints = 0;
