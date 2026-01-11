@@ -1,3 +1,10 @@
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes('localhost') 
+  ? 'http://localhost:3000/api' 
+  : '/api';
+
+console.log("API Base URL:", API_BASE);
+
 // ---------- helpers ----------
 function formatYen(amount) {
   return `¥${Number(amount).toLocaleString()}`;
@@ -28,7 +35,8 @@ async function fetchOrdersFromBackend() {
   }
 
   try {
-    const response = await fetch("http://localhost:3000/api/orders", {
+    console.log("🔄 Fetching orders from:", `${API_BASE}/orders`);
+    const response = await fetch(`${API_BASE}/orders`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -36,13 +44,20 @@ async function fetchOrdersFromBackend() {
 
     if (response.status === 401) {
       // token expired
+      console.log("Token expired, redirecting to login");
       localStorage.removeItem("token");
       localStorage.removeItem("currentUser");
       window.location.href = "login.html";
       return [];
     }
 
+    if (!response.ok) {
+      console.error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch orders: ${response.status}`);
+    }
+
     const data = await response.json();
+    console.log(`Got ${data.orders?.length || 0} orders from backend`);
 
     if (data.success && data.orders) {
       // save orders to localStorage for offline viewing
@@ -61,7 +76,9 @@ async function fetchOrdersFromBackend() {
 
 function getOrdersFromLocalStorage() {
   try {
-    return JSON.parse(localStorage.getItem("orders")) || [];
+    const orders = JSON.parse(localStorage.getItem("orders")) || [];
+    console.log(`📁 Found ${orders.length} orders in localStorage`);
+    return orders;
   } catch {
     return [];
   }
@@ -72,7 +89,7 @@ const ordersList = document.getElementById("ordersList");
 const emptyOrders = document.getElementById("emptyOrders");
 
 async function renderOrders() {
-  console.log("Rendering orders...");
+  console.log("🔄 Rendering orders...");
 
   // try to fetch fresh orders from backend
   let orders = await fetchOrdersFromBackend();
@@ -87,14 +104,15 @@ async function renderOrders() {
 
   if (!orders.length) {
     ordersList.innerHTML = "";
-    emptyOrders.classList.remove("hidden");
+    if (emptyOrders) emptyOrders.classList.remove("hidden");
+    console.log("📭 No orders found");
     return;
   }
 
-  emptyOrders.classList.add("hidden");
+  if (emptyOrders) emptyOrders.classList.add("hidden");
   ordersList.innerHTML = "";
 
-  console.log(`Displaying ${orders.length} orders`);
+  console.log(`📊 Displaying ${orders.length} orders`);
 
   orders.forEach((order) => {
     const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
@@ -201,27 +219,41 @@ async function renderOrders() {
 }
 
 // ---------- buttons ----------
-document.getElementById("backBtn").addEventListener("click", () => {
-  window.location.href = "account.html";
-});
+const backBtn = document.getElementById("backBtn");
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    console.log("🔙 Going back to account page");
+    window.location.href = "account.html";
+  });
+}
 
 // ---------- side menu ----------
 const sideMenu = document.getElementById("sideMenu");
-document.getElementById("menuBtn").addEventListener("click", () => {
-  sideMenu.classList.remove("translate-x-[-110%]");
-  sideMenu.classList.add("translate-x-0");
-});
-document.getElementById("closeMenuBtn").addEventListener("click", () => {
-  sideMenu.classList.add("translate-x-[-110%]");
-  sideMenu.classList.remove("translate-x-0");
-});
+const menuBtn = document.getElementById("menuBtn");
+const closeMenuBtn = document.getElementById("closeMenuBtn");
+
+if (menuBtn && sideMenu) {
+  menuBtn.addEventListener("click", () => {
+    sideMenu.classList.remove("translate-x-[-110%]");
+    sideMenu.classList.add("translate-x-0");
+  });
+}
+if (closeMenuBtn && sideMenu) {
+  closeMenuBtn.addEventListener("click", () => {
+    sideMenu.classList.add("translate-x-[-110%]");
+    sideMenu.classList.remove("translate-x-0");
+  });
+}
 
 // ---------- init ----------
-updateHeaderCartCount();
-renderOrders();
-
-// refresh orders every 30 seconds if user stays on page
-setInterval(() => {
-  console.log("Refreshing orders...");
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("📦 Orders page loaded");
+  updateHeaderCartCount();
   renderOrders();
-}, 30000);
+
+  // refresh orders every 30 seconds if user stays on page
+  setInterval(() => {
+    console.log("🔄 Refreshing orders...");
+    renderOrders();
+  }, 30000);
+});
