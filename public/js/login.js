@@ -1,3 +1,10 @@
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:3000/api"
+  : "/api";
+
+console.log("API Base URL:", API_BASE);
+
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -16,8 +23,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   try {
     console.log("Attempting login for:", email);
+    console.log("Sending request to:", `${API_BASE}/auth/login`);
 
-    const res = await fetch("http://localhost:3000/api/auth/login", {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -25,8 +33,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       body: JSON.stringify({ email, password }),
     });
 
+    console.log("Login response status:", res.status);
     const responseText = await res.text();
-    console.log("Raw login response:", responseText);
+    console.log(
+      "Raw login response:",
+      responseText.substring(0, 200) + "..."
+    );
 
     let data;
     try {
@@ -43,10 +55,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       return;
     }
 
-    // CRITICAL: Check if we got a real token
-    console.log("Token received from server:", data.token);
-    console.log("Token type:", typeof data.token);
-    console.log("Token length:", data.token?.length);
+    // check if we got a real token
+    console.log(
+      "Token received from server:",
+      data.token ? data.token.substring(0, 20) + "..." : "NO TOKEN"
+    );
+    console.log("📏 Token type:", typeof data.token);
+    console.log("📏 Token length:", data.token?.length);
 
     if (!data.token || data.token === "aizawa-approved-token") {
       console.error("Invalid token received from server");
@@ -56,11 +71,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       return;
     }
 
-    // Store the REAL token
+    // store the REAL token
     localStorage.setItem("token", data.token);
     localStorage.setItem("currentUser", JSON.stringify(data.user));
 
     console.log("Token saved to localStorage. User data:", data.user);
+    console.log("Login successful!");
 
     alert("Login successful!");
     window.location.href = "browse.html";

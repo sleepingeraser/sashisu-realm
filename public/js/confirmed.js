@@ -1,4 +1,13 @@
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:3000/api"
+  : "/api";
+
+console.log("API Base URL:", API_BASE);
+
 document.addEventListener("DOMContentLoaded", function () {
+  console.log("Confirmation page loaded");
+
   const viewOrdersBtn = document.getElementById("viewOrdersBtn");
   const orderIdEl = document.getElementById("orderId");
   const orderTotalEl = document.getElementById("orderTotal");
@@ -18,14 +27,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const lastOrder = orders[orders.length - 1];
 
     if (lastOrder) {
-      orderIdEl.textContent = lastOrder.orderId || "—";
-      orderTotalEl.textContent = formatYen(lastOrder.total || 0);
-      orderPointsEl.textContent = `+${lastOrder.pointsEarned || 0}`;
+      if (orderIdEl) orderIdEl.textContent = lastOrder.orderId || "—";
+      if (orderTotalEl)
+        orderTotalEl.textContent = formatYen(lastOrder.total || 0);
+      if (orderPointsEl)
+        orderPointsEl.textContent = `+${lastOrder.pointsEarned || 0}`;
     } else if (paymentIntentId) {
       // show payment intent ID if no order in localStorage
-      orderIdEl.textContent = `Payment: ${paymentIntentId.slice(0, 8)}...`;
-      orderTotalEl.textContent = "¥0";
-      orderPointsEl.textContent = "+0";
+      if (orderIdEl)
+        orderIdEl.textContent = `Payment: ${paymentIntentId.slice(0, 8)}...`;
+      if (orderTotalEl) orderTotalEl.textContent = "¥0";
+      if (orderPointsEl) orderPointsEl.textContent = "+0";
     }
 
     // update cart count
@@ -65,6 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // view orders button
   if (viewOrdersBtn) {
     viewOrdersBtn.addEventListener("click", () => {
+      console.log("Viewing orders...");
       window.location.href = "orders.html";
     });
   }

@@ -1,3 +1,10 @@
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes('localhost') 
+  ? 'http://localhost:3000/api' 
+  : '/api';
+
+console.log("API Base URL:", API_BASE);
+
 const cartList = document.getElementById("cartList");
 const cartTotalEl = document.getElementById("cartTotal");
 const pointsEl = document.getElementById("pointsEarned");
@@ -21,7 +28,7 @@ function formatYen(amount) {
   return `¥${Number(amount).toLocaleString()}`;
 }
 
-// Points: every 10 yen = 1 point
+// points: every 10 yen = 1 point
 function calcPoints(totalYen) {
   return Math.floor(Number(totalYen) / 10);
 }
@@ -49,18 +56,23 @@ function renderCart() {
   // empty
   if (!cart.length) {
     cartList.innerHTML = "";
-    cartTotalEl.textContent = formatYen(0);
-    pointsEl.textContent = "+0";
-    emptyMsg.classList.remove("hidden");
+    if (cartTotalEl) cartTotalEl.textContent = formatYen(0);
+    if (pointsEl) pointsEl.textContent = "+0";
+    if (emptyMsg) emptyMsg.classList.remove("hidden");
 
-    proceedBtn.disabled = true;
-    proceedBtn.classList.add("opacity-50", "cursor-not-allowed");
+    if (proceedBtn) {
+      proceedBtn.disabled = true;
+      proceedBtn.classList.add("opacity-50", "cursor-not-allowed");
+    }
     return;
   }
 
-  emptyMsg.classList.add("hidden");
-  proceedBtn.disabled = false;
-  proceedBtn.classList.remove("opacity-50", "cursor-not-allowed");
+  if (emptyMsg) emptyMsg.classList.add("hidden");
+  
+  if (proceedBtn) {
+    proceedBtn.disabled = false;
+    proceedBtn.classList.remove("opacity-50", "cursor-not-allowed");
+  }
 
   cartList.innerHTML = "";
 
@@ -123,8 +135,8 @@ function renderCart() {
 
   // totals + points
   const total = computeTotals(cart);
-  cartTotalEl.textContent = formatYen(total);
-  pointsEl.textContent = `+${calcPoints(total)}`;
+  if (cartTotalEl) cartTotalEl.textContent = formatYen(total);
+  if (pointsEl) pointsEl.textContent = `+${calcPoints(total)}`;
 }
 
 // ---------- cart actions ----------
@@ -155,32 +167,45 @@ function removeItem(productId) {
 }
 
 // ---------- proceed to payment ----------
-proceedBtn.addEventListener("click", () => {
-  const cart = getCart();
-  if (!cart.length) {
-    alert("Cart is empty. No loot, no checkout.");
-    return;
-  }
+if (proceedBtn) {
+  proceedBtn.addEventListener("click", () => {
+    const cart = getCart();
+    if (!cart.length) {
+      alert("Cart is empty. No loot, no checkout.");
+      return;
+    }
 
-  const total = computeTotals(cart);
-  const points = calcPoints(total);
+    const total = computeTotals(cart);
+    const points = calcPoints(total);
 
-  localStorage.setItem("checkoutTotal", String(total));
-  localStorage.setItem("checkoutPoints", String(points));
+    localStorage.setItem("checkoutTotal", String(total));
+    localStorage.setItem("checkoutPoints", String(points));
 
-  window.location.href = "checkout.html";
-});
+    window.location.href = "checkout.html";
+  });
+}
 
-// ---------- Side menu ----------
+// ---------- side menu ----------
 const sideMenu = document.getElementById("sideMenu");
-document.getElementById("menuBtn").addEventListener("click", () => {
-  sideMenu.classList.remove("translate-x-[-110%]");
-  sideMenu.classList.add("translate-x-0");
-});
-document.getElementById("closeMenuBtn").addEventListener("click", () => {
-  sideMenu.classList.add("translate-x-[-110%]");
-  sideMenu.classList.remove("translate-x-0");
-});
+const menuBtn = document.getElementById("menuBtn");
+const closeMenuBtn = document.getElementById("closeMenuBtn");
+
+if (menuBtn && sideMenu) {
+  menuBtn.addEventListener("click", () => {
+    sideMenu.classList.remove("translate-x-[-110%]");
+    sideMenu.classList.add("translate-x-0");
+  });
+}
+
+if (closeMenuBtn && sideMenu) {
+  closeMenuBtn.addEventListener("click", () => {
+    sideMenu.classList.add("translate-x-[-110%]");
+    sideMenu.classList.remove("translate-x-0");
+  });
+}
 
 // ---------- init ----------
-renderCart();
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("Cart page loaded");
+  renderCart();
+});

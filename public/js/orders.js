@@ -77,7 +77,7 @@ async function fetchOrdersFromBackend() {
 function getOrdersFromLocalStorage() {
   try {
     const orders = JSON.parse(localStorage.getItem("orders")) || [];
-    console.log(`📁 Found ${orders.length} orders in localStorage`);
+    console.log(`Found ${orders.length} orders in localStorage`);
     return orders;
   } catch {
     return [];
@@ -89,7 +89,7 @@ const ordersList = document.getElementById("ordersList");
 const emptyOrders = document.getElementById("emptyOrders");
 
 async function renderOrders() {
-  console.log("🔄 Rendering orders...");
+  console.log("Rendering orders...");
 
   // try to fetch fresh orders from backend
   let orders = await fetchOrdersFromBackend();
@@ -105,14 +105,14 @@ async function renderOrders() {
   if (!orders.length) {
     ordersList.innerHTML = "";
     if (emptyOrders) emptyOrders.classList.remove("hidden");
-    console.log("📭 No orders found");
+    console.log("No orders found");
     return;
   }
 
   if (emptyOrders) emptyOrders.classList.add("hidden");
   ordersList.innerHTML = "";
 
-  console.log(`📊 Displaying ${orders.length} orders`);
+  console.log(`Displaying ${orders.length} orders`);
 
   orders.forEach((order) => {
     const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
@@ -222,7 +222,7 @@ async function renderOrders() {
 const backBtn = document.getElementById("backBtn");
 if (backBtn) {
   backBtn.addEventListener("click", () => {
-    console.log("🔙 Going back to account page");
+    console.log("Going back to account page");
     window.location.href = "account.html";
   });
 }
@@ -247,13 +247,13 @@ if (closeMenuBtn && sideMenu) {
 
 // ---------- init ----------
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("📦 Orders page loaded");
+  console.log("Orders page loaded");
   updateHeaderCartCount();
   renderOrders();
 
   // refresh orders every 30 seconds if user stays on page
   setInterval(() => {
-    console.log("🔄 Refreshing orders...");
+    console.log("Refreshing orders...");
     renderOrders();
   }, 30000);
 });
