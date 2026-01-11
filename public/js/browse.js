@@ -253,7 +253,7 @@ const LOCAL_PRODUCTS = [
   },
 ];
 
-// ---------- API configuration ----------
+// ---------- API onfiguration ----------
 const API_BASE = window.location.origin.includes('localhost') 
   ? 'http://localhost:3000/api' 
   : '/api';

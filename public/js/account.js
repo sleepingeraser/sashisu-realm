@@ -10,7 +10,7 @@ function getCart() {
   try {
     return JSON.parse(localStorage.getItem("cart")) || [];
   } catch {
-    returnn [];
+    return [];
   }
 }
 
