@@ -519,7 +519,7 @@ async function processCreditCardPayment(token, items, delivery) {
           },
         },
       },
-      return_url: window.location.origin + "/confirmed.html",
+      return_url: new URL("confirmed.html", window.location.href).toString(),
     }
   );
 
