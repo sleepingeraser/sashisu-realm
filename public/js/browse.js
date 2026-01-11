@@ -1,5 +1,5 @@
-// ---------- LOCAL PRODUCT DATA ----------
-const PRODUCTS = [
+// ---------- LOCAL PRODUCT DATA (fallback) ----------
+const LOCAL_PRODUCTS = [
   {
     id: "1",
     name: "Attack on Titan UNO",
@@ -253,45 +253,16 @@ const PRODUCTS = [
   },
 ];
 
-const API_BASE = window.location.origin.includes("localhost")
-  ? "http://localhost:3000/api"
-  : "/api";
+// ---------- API configuration ----------
+const API_BASE = window.location.origin.includes('localhost') 
+  ? 'http://localhost:3000/api' 
+  : '/api';
 
-// fetch products from backend instead of hardcoded array
-async function fetchProductsFromBackend() {
-  try {
-    console.log("Fetching products from:", `${API_BASE}/products`);
-    const response = await fetch(`${API_BASE}/products`);
-    if (!response.ok)
-      throw new Error(`Failed to fetch products: ${response.status}`);
-    const data = await response.json();
-    return data.products || [];
-  } catch (error) {
-    console.error("Failed to fetch products, using local data:", error);
-    return PRODUCTS; // fallback to local data
-  }
-}
-
-// update the initialization to use fetched products
-document.addEventListener("DOMContentLoaded", async function () {
-  try {
-    const backendProducts = await fetchProductsFromBackend();
-    if (backendProducts && backendProducts.length > 0) {
-      PRODUCTS = backendProducts.map((p) => ({
-        id: p.Id.toString(),
-        name: p.Name,
-        price: p.PriceCents / 100, // Convert cents to yen
-        category: p.Category,
-        image: p.ImageUrl,
-        tags: p.tags || [],
-      }));
-    }
-  } catch (error) {
-    console.error("Using local product data:", error);
-  }
-});
+console.log("API Base URL:", API_BASE);
+console.log("Current origin:", window.location.origin);
 
 // ---------- pagination state ----------
+let PRODUCTS = [...LOCAL_PRODUCTS]; // Start with local, will be updated
 let allProducts = [];
 let offset = 0;
 const pageSize = 9;
@@ -303,6 +274,38 @@ const moreBtn = document.getElementById("moreBtn");
 const searchInput = document.getElementById("searchInput");
 const filterSelect = document.getElementById("filterSelect");
 const sortSelect = document.getElementById("sortSelect");
+
+// ---------- fetch products from backend ----------
+async function fetchProductsFromBackend() {
+  try {
+    console.log("🔄 Fetching products from:", `${API_BASE}/products`);
+    const response = await fetch(`${API_BASE}/products`);
+    
+    if (!response.ok) {
+      console.error(`❌ Failed to fetch products: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch products: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`✅ Got ${data.products?.length || 0} products from backend`);
+    
+    if (data.products && data.products.length > 0) {
+      // transform backend data to match frontend format
+      return data.products.map(p => ({
+        id: p.Id.toString(),
+        name: p.Name,
+        price: p.PriceCents / 100, // convert cents to yen
+        category: p.Category,
+        image: p.ImageUrl,
+        tags: p.tags || []
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch products from backend, using local data:", error);
+    return LOCAL_PRODUCTS; // fallback to local data
+  }
+}
 
 // ---------- cart ----------
 function getCart() {
@@ -486,5 +489,24 @@ if (closeMenuBtn && sideMenu) {
 }
 
 // ---------- init ----------
-updateCartCount();
-loadNextPage(); // loads first 9
+document.addEventListener("DOMContentLoaded", async function () {
+  console.log("🔄 Initializing browse page...");
+  
+  try {
+    // fetch products from backend first
+    const backendProducts = await fetchProductsFromBackend();
+    if (backendProducts && backendProducts.length > 0) {
+      PRODUCTS = backendProducts;
+      console.log(`Using ${PRODUCTS.length} products from backend`);
+    } else {
+      console.log("Using local product data");
+      PRODUCTS = LOCAL_PRODUCTS;
+    }
+  } catch (error) {
+    console.error("Error fetching products, using local data:", error);
+    PRODUCTS = LOCAL_PRODUCTS;
+  }
+  
+  updateCartCount();
+  loadNextPage(); // loads first 9
+});
