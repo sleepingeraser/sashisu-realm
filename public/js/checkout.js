@@ -547,10 +547,17 @@ async function processCreditCardPayment(token, items, delivery) {
       0 // points used = 0 for card payment
     );
 
-    // Update user points in localStorage
-    const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
-    currentUser.points = (currentUser.points || 0) + pointsEarned;
-    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    // refresh points from server and update localStorage for UI
+    try {
+      const freshPoints = await fetchUserPoints();
+      const currentUser = JSON.parse(
+        localStorage.getItem("currentUser") || "{}"
+      );
+      currentUser.points = freshPoints;
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    } catch (e) {
+      console.warn("Could not refresh points, will update on account page");
+    }
 
     // clear cart
     localStorage.setItem("cart", JSON.stringify([]));
