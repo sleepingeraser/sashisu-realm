@@ -1,11 +1,17 @@
 // ============ configuration ============
-const API_BASE = `${window.location.origin}/api`;
+// use relative paths for API calls
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:3000/api"
+  : "/api";
+
+console.log("🔧 API Base URL:", API_BASE);
+console.log("🌐 Current origin:", window.location.origin);
 
 // ============ global variables ============
 let stripe;
 let elements;
 let cardElement;
-let currentPaymentMethod = "card"; // 'card' or 'points'
+let currentPaymentMethod = "card";
 let userPoints = 0;
 let orderTotalYen = 0;
 let orderTotalPoints = 0;
@@ -25,23 +31,43 @@ function getAuthToken() {
 // ============ initialize stripe ============
 async function initializeStripe() {
   try {
-    console.log("Initializing Stripe...");
+    console.log("🔧 Initializing Stripe...");
+    console.log("   API Base:", API_BASE);
 
     // check auth first
     if (!checkAuth()) return;
 
     // get publishable key from backend
+    console.log(
+      "   Fetching Stripe config from:",
+      `${API_BASE}/payments/config`
+    );
     const response = await fetch(`${API_BASE}/payments/config`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch config: ${response.status} ${response.statusText}`
+      );
+    }
+
     const data = await response.json();
+    console.log("   Config response:", data);
 
     if (!data.success) {
       throw new Error(data.message || "Failed to get Stripe config");
     }
 
-    console.log("Got publishable key");
+    console.log("✅ Got publishable key");
+
+    // check if Stripe is loaded
+    if (typeof Stripe === "undefined") {
+      throw new Error("Stripe.js library not loaded. Check script tag.");
+    }
 
     // initialize Stripe
-    stripe = Stripe(data.publishableKey);
+    stripe = Stripe(data.publishableKey, {
+      apiVersion: "2023-10-16",
+    });
 
     // initialize Elements
     elements = stripe.elements();
@@ -63,7 +89,7 @@ async function initializeStripe() {
       },
     };
 
-    // mount card element
+    // Mount card element
     cardElement = elements.create("card", {
       style: style,
       hidePostalCode: true,
@@ -84,13 +110,17 @@ async function initializeStripe() {
       updatePaymentButtonState();
     });
 
-    console.log("Stripe initialized successfully");
+    console.log("✅ Stripe initialized successfully");
+    return true;
   } catch (error) {
-    console.error("Failed to initialize Stripe:", error);
-    document.getElementById("card-errors").textContent =
-      "Payment system initialization failed. Please refresh the page.";
+    console.error("❌ Failed to initialize Stripe:", error);
+    const errorElement = document.getElementById("card-errors");
+    if (errorElement) {
+      errorElement.textContent = `Payment system initialization failed: ${error.message}. Please refresh the page or contact support.`;
+    }
     isCardValid = false;
     updatePaymentButtonState();
+    return false;
   }
 }
 
@@ -106,6 +136,11 @@ async function fetchUserPoints() {
       },
     });
 
+    if (!response.ok) {
+      console.log(`Failed to fetch user points: ${response.status}`);
+      return 0;
+    }
+
     const data = await response.json();
 
     if (data.success && data.user) {
@@ -120,15 +155,15 @@ async function fetchUserPoints() {
 
 // ============ update points display ============
 function updatePointsDisplay() {
-  const pointsNeeded = Math.floor(orderTotalYen / 10); // 10 yen = 1 point
+  const pointsNeeded = Math.floor(orderTotalYen / 10);
 
-  // Update displays
+  // update displays
   document.getElementById("userPoints").textContent =
     userPoints.toLocaleString();
   document.getElementById("orderPointsNeeded").textContent =
     pointsNeeded.toLocaleString();
 
-  // Calculate progress
+  // calculate progress
   const progressPercentage = Math.min((userPoints / pointsNeeded) * 100, 100);
   const pointsProgressBar = document.getElementById("pointsProgressBar");
   const pointsProgressText = document.getElementById("pointsProgressText");
@@ -136,12 +171,12 @@ function updatePointsDisplay() {
   const usePointsBtn = document.getElementById("usePointsBtn");
   const pointsMessage = document.getElementById("pointsMessage");
 
-  // Update progress bar
+  // update progress bar
   if (pointsProgressBar) {
     pointsProgressBar.style.width = `${progressPercentage}%`;
   }
 
-  // Update progress text
+  // update progress text
   if (pointsProgressText) {
     pointsProgressText.textContent = `${Math.min(
       userPoints,
@@ -149,9 +184,9 @@ function updatePointsDisplay() {
     ).toLocaleString()}/${pointsNeeded.toLocaleString()}`;
   }
 
-  // Update status and button
+  // update status and button
   if (userPoints >= pointsNeeded) {
-    pointsStatus.textContent = "✅ Sufficient Points";
+    pointsStatus.textContent = "Sufficient Points";
     pointsStatus.className = "text-lg font-semibold text-green-400";
 
     if (usePointsBtn) {
@@ -174,7 +209,7 @@ function updatePointsDisplay() {
         "mt-4 text-sm p-3 rounded-lg bg-green-900/20 border border-green-500/30";
     }
   } else {
-    pointsStatus.textContent = "❌ Insufficient Points";
+    pointsStatus.textContent = "Insufficient Points";
     pointsStatus.className = "text-lg font-semibold text-red-400";
 
     if (usePointsBtn) {
@@ -197,7 +232,7 @@ function updatePointsDisplay() {
     }
   }
 
-  // Update points to earn display
+  // update points to earn display
   const pointsToEarnEl = document.getElementById("pointsToEarn");
   if (pointsToEarnEl) {
     const cart = getCart();
@@ -206,7 +241,7 @@ function updatePointsDisplay() {
     pointsToEarnEl.textContent = pointsEarnedFromPurchase;
   }
 
-  // Update main payment button state
+  // update main payment button state
   updatePaymentButtonState();
 }
 
@@ -222,14 +257,14 @@ function setupPaymentMethodToggle() {
     option.addEventListener("click", function () {
       const method = this.dataset.option;
 
-      // Update radio button
+      // update radio button
       const radio = this.querySelector(".payment-radio");
-      radio.checked = true;
+      if (radio) radio.checked = true;
 
-      // Update current payment method
+      // update current payment method
       currentPaymentMethod = method;
 
-      // Update UI to show selected method
+      // update UI to show selected method
       paymentOptions.forEach((opt) => {
         opt.classList.remove("bg-purple-900/50", "border-purple-500/50");
         opt.classList.add("bg-white/10", "border-white/15");
@@ -238,21 +273,25 @@ function setupPaymentMethodToggle() {
       this.classList.remove("bg-white/10", "border-white/15");
       this.classList.add("bg-purple-900/50", "border-purple-500/50");
 
-      // Show/hide details
+      // show/hide details
       paymentDetails.forEach((detail) => {
         detail.classList.add("hidden");
       });
 
       if (method === "card") {
         document.getElementById("cardDetails").classList.remove("hidden");
-        selectedPaymentMethod.textContent = "Credit Card";
-        selectedPaymentMethod.className =
-          "text-sm sm:text-base font-semibold text-purple-300";
+        if (selectedPaymentMethod) {
+          selectedPaymentMethod.textContent = "Credit Card";
+          selectedPaymentMethod.className =
+            "text-sm sm:text-base font-semibold text-purple-300";
+        }
       } else if (method === "points") {
         document.getElementById("pointsDetails").classList.remove("hidden");
-        selectedPaymentMethod.textContent = "Prison Realm Points";
-        selectedPaymentMethod.className =
-          "text-sm sm:text-base font-semibold text-yellow-300";
+        if (selectedPaymentMethod) {
+          selectedPaymentMethod.textContent = "Prison Realm Points";
+          selectedPaymentMethod.className =
+            "text-sm sm:text-base font-semibold text-yellow-300";
+        }
       }
 
       // Update payment button state
@@ -260,8 +299,13 @@ function setupPaymentMethodToggle() {
     });
   });
 
-  // Initialize with card selected
-  document.querySelector('.payment-option[data-option="card"]').click();
+  // initialize with card selected
+  const cardOption = document.querySelector(
+    '.payment-option[data-option="card"]'
+  );
+  if (cardOption) {
+    cardOption.click();
+  }
 }
 
 // ============ check delivery form validation ============
@@ -277,7 +321,7 @@ function updatePaymentButtonState() {
   const sealBtn = document.getElementById("sealOrderBtn");
   if (!sealBtn) return;
 
-  // Check if cart is empty
+  // check if cart is empty
   const cart = getCart();
   if (!cart.length) {
     sealBtn.disabled = true;
@@ -288,11 +332,11 @@ function updatePaymentButtonState() {
     return;
   }
 
-  // Check if delivery form is valid
+  // check if delivery form is valid
   const isDeliveryValid = checkDeliveryForm();
 
   if (currentPaymentMethod === "card") {
-    // For credit card: need valid card AND valid delivery form
+    // for credit card: need valid card AND valid delivery form
     const canPay = isCardValid && isDeliveryValid;
 
     if (canPay) {
@@ -319,7 +363,7 @@ function updatePaymentButtonState() {
       }
     }
   } else if (currentPaymentMethod === "points") {
-    // For points: need sufficient points AND valid delivery form
+    // for points: need sufficient points AND valid delivery form
     const pointsNeeded = Math.floor(orderTotalYen / 10);
     const hasEnoughPoints = userPoints >= pointsNeeded;
     const canPay = hasEnoughPoints && isDeliveryValid;
@@ -359,7 +403,7 @@ function updatePaymentButtonState() {
 
 // ============ setup form validation listeners ============
 function setupFormValidation() {
-  // Get all delivery form inputs
+  // get all delivery form inputs
   const deliveryInputs = [
     "fullName",
     "phone",
@@ -369,7 +413,7 @@ function setupFormValidation() {
     "prefecture",
   ];
 
-  // Add input event listeners to all delivery fields
+  // add input event listeners to all delivery fields
   deliveryInputs.forEach((fieldId) => {
     const input = document.getElementById(fieldId);
     if (input) {
@@ -382,11 +426,11 @@ function setupFormValidation() {
     }
   });
 
-  // Also listen for card name input
+  // also listen for card name input
   const cardNameInput = document.getElementById("cardName");
   if (cardNameInput) {
     cardNameInput.addEventListener("input", () => {
-      // Card name is required for card payments
+      // card name is required for card payments
       if (currentPaymentMethod === "card") {
         updatePaymentButtonState();
       }
@@ -405,7 +449,7 @@ async function handlePayment() {
     const originalText = sealBtn.innerHTML;
     sealBtn.innerHTML =
       '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Processing...';
-    cardError.textContent = "";
+    if (cardError) cardError.textContent = "";
 
     // 1. validate cart
     const cart = getCart();
@@ -436,7 +480,7 @@ async function handlePayment() {
     console.log("Payment method:", currentPaymentMethod);
 
     if (currentPaymentMethod === "card") {
-      // Validate card before proceeding
+      // validate card before proceeding
       if (!isCardValid) {
         throw new Error("Please complete your card details");
       }
@@ -446,17 +490,21 @@ async function handlePayment() {
         throw new Error("Please enter the name on your card");
       }
 
-      // Credit card payment
+      // credit card payment
       await processCreditCardPayment(token, items, delivery);
     } else if (currentPaymentMethod === "points") {
-      // Points payment
+      // points payment
       await processPointsPayment(token, items, delivery);
     }
   } catch (error) {
     console.error("Payment failed:", error);
-    cardError.textContent = error.message;
-    sealBtn.disabled = false;
-    sealBtn.innerHTML = originalText;
+    if (cardError) {
+      cardError.textContent = error.message;
+    }
+    if (sealBtn) {
+      sealBtn.disabled = false;
+      sealBtn.innerHTML = originalText;
+    }
     updatePaymentButtonState();
   }
 }
@@ -478,17 +526,12 @@ async function processCreditCardPayment(token, items, delivery) {
     }),
   });
 
-  const responseText = await response.text();
-  console.log("Raw response:", responseText);
-
-  let data;
-  try {
-    data = JSON.parse(responseText);
-  } catch (parseError) {
-    console.error("Failed to parse JSON:", parseError);
-    throw new Error("Invalid response from server");
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Payment setup failed: ${response.status} ${errorText}`);
   }
 
+  const data = await response.json();
   console.log("Payment intent response:", data);
 
   if (!data.success) {
@@ -557,14 +600,14 @@ async function processCreditCardPayment(token, items, delivery) {
     localStorage.setItem("cart", JSON.stringify([]));
     updateHeaderCartCount();
 
-    // Save order to localStorage for display
+    // save order to localStorage for display
     const orders = JSON.parse(localStorage.getItem("orders") || "[]");
     orders.push({
       orderId: `stripe_${paymentIntent.id.slice(-8)}`,
       status: "PAID",
       totalYen: orderTotalYen,
       totalCents: orderTotalYen * 100,
-      subtotalCents: (orderTotalYen - 3.18) * 100, // Subtract shipping
+      subtotalCents: (orderTotalYen - 3.18) * 100,
       shippingCents: 318,
       paymentMethod: "stripe_card",
       pointsUsed: 0,
@@ -585,7 +628,7 @@ async function processCreditCardPayment(token, items, delivery) {
 async function processPointsPayment(token, items, delivery) {
   console.log("Processing points payment...");
 
-  // Calculate points needed (10 yen = 1 point)
+  // calculate points needed (10 yen = 1 point)
   const pointsNeeded = Math.floor(orderTotalYen / 10);
 
   console.log(`Points payment details:`);
@@ -600,7 +643,7 @@ async function processPointsPayment(token, items, delivery) {
   }
 
   try {
-    // Create order with points payment
+    // create order with points payment
     const orderData = {
       items: items,
       shippingCents: 318,
@@ -624,6 +667,11 @@ async function processPointsPayment(token, items, delivery) {
       body: JSON.stringify(orderData),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Points payment failed: ${response.status} ${errorText}`);
+    }
+
     const data = await response.json();
     console.log("Points payment response:", data);
 
@@ -631,23 +679,23 @@ async function processPointsPayment(token, items, delivery) {
       throw new Error(data.message || "Points payment failed");
     }
 
-    // Update user points in localStorage
+    // update user points in localStorage
     const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
     currentUser.points = data.userPoints || userPoints - pointsNeeded;
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
 
-    // Clear cart
+    // clear cart
     localStorage.setItem("cart", JSON.stringify([]));
     updateHeaderCartCount();
 
-    // Save order to localStorage for display
+    // save order to localStorage for display
     const orders = JSON.parse(localStorage.getItem("orders") || "[]");
     orders.push({
       orderId: data.orderId,
       status: "PAID",
       totalYen: orderTotalYen,
       totalCents: orderTotalYen * 100,
-      subtotalCents: (orderTotalYen - 3.18) * 100, // Subtract shipping
+      subtotalCents: (orderTotalYen - 3.18) * 100,
       shippingCents: 318,
       paymentMethod: "points",
       pointsUsed: pointsNeeded,
@@ -657,7 +705,7 @@ async function processPointsPayment(token, items, delivery) {
     });
     localStorage.setItem("orders", JSON.stringify(orders));
 
-    // Redirect to success page
+    // redirect to success page
     window.location.href = `confirmed.html?order_id=${data.orderId}&payment_method=points&points_used=${pointsNeeded}&success=true`;
   } catch (error) {
     console.error("Points payment failed:", error);
@@ -847,6 +895,7 @@ function formatYen(amount) {
 // ============ initialize ============
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("Checkout page loaded");
+  console.log("Environment:", window.location.origin);
 
   // update cart display
   renderTotals();
@@ -870,18 +919,27 @@ document.addEventListener("DOMContentLoaded", async function () {
     setupFormValidation();
 
     // initialize Stripe
-    await initializeStripe();
+    const stripeInitialized = await initializeStripe();
+    if (!stripeInitialized) {
+      console.error("Stripe initialization failed");
+      return;
+    }
 
-    // Setup points payment button
+    // setup points payment button
     const usePointsBtn = document.getElementById("usePointsBtn");
     if (usePointsBtn) {
       usePointsBtn.addEventListener("click", () => {
-        // When user clicks "Pay with Points", switch to points payment method
-        document.querySelector('.payment-option[data-option="points"]').click();
+        // when user clicks "Pay with Points", switch to points payment method
+        const pointsOption = document.querySelector(
+          '.payment-option[data-option="points"]'
+        );
+        if (pointsOption) {
+          pointsOption.click();
+        }
       });
     }
 
-    // Initial button state update
+    // initial button state update
     updatePaymentButtonState();
   } catch (error) {
     console.error("Initialization error:", error);
@@ -912,7 +970,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // Auto-refresh points every 10 seconds
+  // auto-refresh points every 30 seconds
   setInterval(async () => {
     try {
       const freshPoints = await fetchUserPoints();
@@ -924,5 +982,5 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (err) {
       console.error("Failed to refresh points:", err);
     }
-  }, 10000);
+  }, 30000);
 });
