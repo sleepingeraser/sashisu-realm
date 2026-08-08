@@ -58,6 +58,6 @@ figma link: https://www.figma.com/design/s5mCCdpQdAHwkZOdhAQKbe/sashisu-realm-fi
 
 - the photos used in this site were obtained from https://www.amiami.com/eng/
 
-### acknoedgements
+### acknowledgements
 
 - I recieved inspiration for this project from amiami, carousell and telegram channels
