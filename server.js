@@ -6,14 +6,14 @@ const cors = require("cors");
 
 const app = express();
 
-// Mmddleware
+// middleware
 app.use(
   cors({
     origin: "*",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 app.use(express.json());
@@ -54,7 +54,7 @@ app.get("*", (req, res) => {
 
   // serve frontend HTML files
   res.sendFile(
-    path.join(__dirname, "public", req.path === "/" ? "index.html" : req.path)
+    path.join(__dirname, "public", req.path === "/" ? "index.html" : req.path),
   );
 });
 
@@ -69,13 +69,20 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`API endpoints:`);
-  console.log(`   - /api/health`);
-  console.log(`   - /api/auth/*`);
-  console.log(`   - /api/products/*`);
-  console.log(`   - /api/orders/*`);
-  console.log(`   - /api/payments/*`);
-});
+
+// export app for testing
+module.exports = app;
+
+// only start the server if NOT in test environment
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`API endpoints:`);
+    console.log(`   - /api/health`);
+    console.log(`   - /api/auth/*`);
+    console.log(`   - /api/products/*`);
+    console.log(`   - /api/orders/*`);
+    console.log(`   - /api/payments/*`);
+  });
+}
